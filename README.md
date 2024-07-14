@@ -1,2 +1,2 @@
-# twitt-go
+# twitt-py
 Distributed Systems Project
