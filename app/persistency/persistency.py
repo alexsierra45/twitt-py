@@ -3,7 +3,7 @@ import os
 import logging
 import grpc
 
-from app.chord.node import ChordNode
+from chord.node import ChordNode
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -25,7 +25,6 @@ def save(node: ChordNode, obj, path):
     if err:
         logging.error("Error saving file")
         return grpc.StatusCode.INTERNAL
-
     return None
 
 def load(node: ChordNode, path, obj):

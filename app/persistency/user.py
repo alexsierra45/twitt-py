@@ -1,28 +1,34 @@
 import os
-
 import grpc
-from persistency import save, load, file_exists
 
-def exists_user(username):
-    path = os.path.join("User", username.lower())
-    return file_exists(None, path)
+from chord.node import ChordNode
+from persistency.persistency import save, load, file_exists
+from interfaces.grpc.proto.models_pb2 import User
 
-def load_user(username):
-    path = os.path.join("User", username.lower())
-    user, err = load(None, path, dict)
+class UserPersitency:
+    def __init__(self, node: ChordNode) -> None:
+        self.node = node
 
-    if err == grpc.StatusCode.NOT_FOUND:
-        return None, grpc.StatusCode.NOT_FOUND
-    elif err:
-        return None, grpc.StatusCode.INTERNAL
+    def exists_user(self, username):
+        path = os.path.join("User", username.lower())
+        return file_exists(self.node, path)
 
-    return user, None
+    def load_user(self, username):
+        path = os.path.join("User", username.lower())
+        user, err = load(self.node, path, User())
 
-def save_user(user):
-    path = os.path.join("User", user["username"].lower())
-    err = save(None, user, path)
+        if err == grpc.StatusCode.NOT_FOUND:
+            return None, grpc.StatusCode.NOT_FOUND
+        elif err:
+            return None, grpc.StatusCode.INTERNAL
 
-    if err:
-        return grpc.StatusCode.INTERNAL
+        return user, None
 
-    return None
+    def save_user(self, user):
+        path = os.path.join("User", user.username.lower())
+        err = save(self.node, user, path)
+
+        if err:
+            return grpc.StatusCode.INTERNAL
+
+        return None
