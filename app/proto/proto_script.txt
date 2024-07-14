@@ -1,0 +1,1 @@
+python3 -m grpc_tools.protoc -I. --python_out=interfaces/grpc --grpc_python_out=interfaces/grpc proto/auth.proto proto/user.proto
