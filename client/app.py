@@ -25,12 +25,8 @@ def login_page():
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
+        print("hola")
         response = login(username, password)
-        if response.success:
-            st.session_state['username'] = username
-            st.success("Logged in successfully!")
-        else:
-            st.error(response.message)
 
 def sign_up_page():
     st.title("Sign Up")
@@ -40,10 +36,7 @@ def sign_up_page():
     password = st.text_input("Password", type="password")
     if st.button("Sign Up"):
         response = sign_up(email, username, name, password)
-        if response.success:
-            st.success("Sign Up successful! Please log in.")
-        else:
-            st.error(response.message)
+        
 
 def home():
     st.title("Home")

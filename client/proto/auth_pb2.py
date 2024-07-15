@@ -12,24 +12,24 @@ from google.protobuf.internal import builder as _builder
 _sym_db = _symbol_database.Default()
 
 
-import models_pb2 as models__pb2
+from proto import models_pb2 as models__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nauth.proto\x1a\x0cmodels.proto\"2\n\x0cLoginRequest\x12\x10\n\x08username\x18\x01 \x01(\t\x12\x10\n\x08password\x18\x02 \x01(\t\"\x1e\n\rLoginResponse\x12\r\n\x05token\x18\x01 \x01(\t\"$\n\rSignUpRequest\x12\x13\n\x04user\x18\x01 \x01(\x0b\x32\x05.User\"\x10\n\x0eSignUpResponse2`\n\x0b\x41uthService\x12)\n\x06SignUp\x12\x0e.SignUpRequest\x1a\x0f.SignUpResponse\x12&\n\x05Login\x12\r.LoginRequest\x1a\x0e.LoginResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nauth.proto\x12\x07twittpy\x1a\x0cmodels.proto\"2\n\x0cLoginRequest\x12\x10\n\x08username\x18\x01 \x01(\t\x12\x10\n\x08password\x18\x02 \x01(\t\"\x1e\n\rLoginResponse\x12\r\n\x05token\x18\x01 \x01(\t\",\n\rSignUpRequest\x12\x1b\n\x04user\x18\x01 \x01(\x0b\x32\r.twittpy.User\"\x10\n\x0eSignUpResponse2y\n\x04\x41uth\x12\x39\n\x06SignUp\x12\x16.twittpy.SignUpRequest\x1a\x17.twittpy.SignUpResponse\x12\x36\n\x05Login\x12\x15.twittpy.LoginRequest\x1a\x16.twittpy.LoginResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'auth_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_LOGINREQUEST']._serialized_start=28
-  _globals['_LOGINREQUEST']._serialized_end=78
-  _globals['_LOGINRESPONSE']._serialized_start=80
-  _globals['_LOGINRESPONSE']._serialized_end=110
-  _globals['_SIGNUPREQUEST']._serialized_start=112
-  _globals['_SIGNUPREQUEST']._serialized_end=148
-  _globals['_SIGNUPRESPONSE']._serialized_start=150
-  _globals['_SIGNUPRESPONSE']._serialized_end=166
-  _globals['_AUTHSERVICE']._serialized_start=168
-  _globals['_AUTHSERVICE']._serialized_end=264
+  _globals['_LOGINREQUEST']._serialized_start=37
+  _globals['_LOGINREQUEST']._serialized_end=87
+  _globals['_LOGINRESPONSE']._serialized_start=89
+  _globals['_LOGINRESPONSE']._serialized_end=119
+  _globals['_SIGNUPREQUEST']._serialized_start=121
+  _globals['_SIGNUPREQUEST']._serialized_end=165
+  _globals['_SIGNUPRESPONSE']._serialized_start=167
+  _globals['_SIGNUPRESPONSE']._serialized_end=183
+  _globals['_AUTH']._serialized_start=185
+  _globals['_AUTH']._serialized_end=306
 # @@protoc_insertion_point(module_scope)

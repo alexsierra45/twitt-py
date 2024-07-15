@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+package twittpy;
 
 message User {
   string username = 1;

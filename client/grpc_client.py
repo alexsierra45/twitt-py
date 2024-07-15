@@ -1,11 +1,21 @@
 import grpc
-from proto import auth_pb2, auth_pb2_grpc
+from proto import auth_pb2, auth_pb2_grpc, models_pb2, models_pb2_grpc
 
 channel = grpc.insecure_channel('localhost:5000')
-user_stub = auth_pb2_grpc.AuthServiceStub(channel)
+user_stub = auth_pb2_grpc.AuthStub(channel)
 
 def sign_up(email, username, name, password):
-    return user_stub.SignUp(auth_pb2.SignUpRequest(email=email, username=username, name=name, password=password))
+    user = models_pb2.User(email=email, username=username, name=name, password=password)
+    request = auth_pb2.SignUpRequest(user=user)
+    response = user_stub.SignUp(request)
+    print (response)
+
 
 def login(username, password):
-    return user_stub.Login(auth_pb2.LoginRequest(username=username, password=password))
+    request = auth_pb2.LoginRequest(username=username, password=password)
+    print(request)
+
+    print("hola")
+    response = user_stub.Login(request)
+    print (response)
+    return True

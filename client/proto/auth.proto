@@ -1,8 +1,9 @@
 syntax = "proto3";
+package twittpy;
 
 import "models.proto";
 
-service AuthService {
+service Auth {
     rpc SignUp (SignUpRequest) returns (SignUpResponse);
     rpc Login (LoginRequest) returns (LoginResponse);
 }
