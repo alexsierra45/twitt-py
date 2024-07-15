@@ -28,7 +28,6 @@ class AuthService(AuthServicer):
             else:
                 context.abort(err, "Something went wrong")
             
-        print(user)
         if not user or not verify_password(user.user_password, password):
             context.abort(grpc.StatusCode.PERMISSION_DENIED, "Wrong username or password")
 
@@ -37,7 +36,6 @@ class AuthService(AuthServicer):
 
     def SignUp(self, request, context):
         user = request.user
-        print(user)
 
         if not is_email_valid(user.email):
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid email")
