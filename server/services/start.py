@@ -9,4 +9,4 @@ def start():
 
     user_persitency = UserPersitency(node)
 
-    start_auth_service(NETWORK, "172.31.141.188:5000", user_persitency)
+    start_auth_service(NETWORK, "localhost:5000", user_persitency)
