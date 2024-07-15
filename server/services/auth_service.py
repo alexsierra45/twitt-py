@@ -4,7 +4,6 @@ from concurrent import futures
 import time
 import jwt
 import re
-from grpclib import GRPCError
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from config import PASSWORD, RSA_PRIVATE_KEY_PATH, RSA_PUBLIC_KEY_PATH
@@ -25,9 +24,9 @@ class AuthService(AuthServicer):
 
         if err:
             if err == grpc.StatusCode.NOT_FOUND:
-                raise GRPCError(grpc.StatusCode.PERMISSION_DENIED, "Wrong username or password")
+                context.abort(grpc.StatusCode.PERMISSION_DENIED, "Wrong username or password")
             else:
-                raise GRPCError(err, "Something went wrong")
+                context.abort(err, "Something went wrong")
             
         print(user)
         if not user or not verify_password(user.user_password, password):
@@ -41,11 +40,11 @@ class AuthService(AuthServicer):
         print(user)
 
         if not is_email_valid(user.email):
-            raise GRPCError(grpc.StatusCode.INVALID_ARGUMENT, "Invalid email")
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid email")
 
         exists, err = self.user_persistency.exists_user(user.username)
         if exists or err:
-            raise GRPCError(grpc.StatusCode.INVALID_ARGUMENT, "Fail to sign up")
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Fail to sign up")
 
         self.user_persistency.save_user(user)
         return SignUpResponse()
