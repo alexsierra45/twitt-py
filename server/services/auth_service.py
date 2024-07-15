@@ -25,27 +25,27 @@ class AuthService(AuthServicer):
 
         if err:
             if err == grpc.StatusCode.NOT_FOUND:
-                raise GRPCError(grpc.StatusCode.PERMISSION_DENIED, "Wrong username or password")
+                return None, GRPCError(grpc.StatusCode.PERMISSION_DENIED, "Wrong username or password")
             else:
-                raise GRPCError(err, "Something went wrong")
+                return None, GRPCError(err, "Something went wrong")
             
         print(user)
         if not user or not verify_password(user.user_password, password):
-            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Wrong username or password")
+            return None, GRPCError(grpc.StatusCode.PERMISSION_DENIED, "Wrong username or password")
 
         token = self.generate_token(user)
-        return LoginResponse(token=token)
+        return LoginResponse(token=token), None
 
     def SignUp(self, request, context):
         user = request.user
         print(user)
 
         if not is_email_valid(user.email):
-            raise GRPCError(grpc.StatusCode.INVALID_ARGUMENT, "Invalid email")
+            return None, GRPCError(grpc.StatusCode.INVALID_ARGUMENT, "Invalid email")
 
         exists, err = self.user_persistency.exists_user(user.username)
         if exists or err:
-            raise GRPCError(grpc.StatusCode.INVALID_ARGUMENT, "Fail to sign up")
+            return None, GRPCError(grpc.StatusCode.INVALID_ARGUMENT, "Fail to sign up")
 
         self.user_persistency.save_user(user)
         return SignUpResponse()
