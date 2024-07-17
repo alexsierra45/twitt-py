@@ -9,6 +9,9 @@ logging.basicConfig(level=logging.DEBUG)
 
 # full_path = os.path.join("data", path.lower() + ".bin")
 
+def is_empty(data: str):
+    return data == ''
+
 def save(node: ChordNode, obj, path):
     logging.debug(f"Saving file: {path}")
 
@@ -20,8 +23,8 @@ def save(node: ChordNode, obj, path):
 
     str_data = base64.b64encode(data).decode('utf-8')
 
-    err = node.set_key(path, str_data)
-    if err:
+    ok = node.set_key(path, str_data)
+    if not ok:
         logging.error("Error saving file")
         return grpc.StatusCode.INTERNAL
     return None
@@ -29,9 +32,9 @@ def save(node: ChordNode, obj, path):
 def load(node: ChordNode, path, obj):
     logging.debug(f"Loading file: {path}")
 
-    data_str, err = node.get_key(path)
-    if err:
-        logging.error(f"Error getting file: {err}")
+    data_str = node.get_key(path)
+    if is_empty(data_str):
+        logging.error(f"Error getting file")
         return None, grpc.StatusCode.NOT_FOUND
 
     try:
@@ -46,9 +49,9 @@ def load(node: ChordNode, path, obj):
 def delete(node: ChordNode, path):
     logging.debug(f"Deleting file: {path}")
 
-    err = node.remove_key(path)
-    if err:
-        logging.error(f"Error deleting file: {err}")
+    ok = node.remove_key(path)
+    if not ok:
+        logging.error(f"Error deleting file")
         return grpc.StatusCode.INTERNAL
 
     return None
@@ -56,8 +59,8 @@ def delete(node: ChordNode, path):
 def file_exists(node: ChordNode, path):
     logging.debug(f"Checking if file exists: {path}")
 
-    _, err = node.get_key(path)
-    if err:
+    exists = not is_empty(node.get_key(path))
+    if not exists:
         logging.debug("File doesn't exist")
         return False, None
     # elif err:
