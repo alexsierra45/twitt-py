@@ -2,8 +2,9 @@ import hashlib
 import logging
 import time
 
-def hash_function(key):
-    return int(hashlib.sha1(key.encode()).hexdigest(), 16)
+# Function to hash a string using SHA-1 and return its integer representation
+def getShaRepr(data: str):
+    return int(hashlib.sha1(data.encode()).hexdigest(), 16)
 
 def repeat(sleep_time, condition: lambda *args: True):
     '''Repeat periodically this function call'''

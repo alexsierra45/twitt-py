@@ -1,0 +1,6 @@
+grpcio
+google
+protobuf
+PyJWT
+cryptography
+grpc_interceptor
