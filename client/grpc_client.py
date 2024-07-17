@@ -13,8 +13,8 @@ def sign_up(email, username, name, password):
         response = user_stub.SignUp(request)
         print (response)
         return True
-    except GRPCError as error:
-        logger.error(f"An error occurred creating the user: {error.status}: {error.details}")
+    except grpc.RpcError as error:
+        logger.error(f"An error occurred creating the user: {error.code()}: {error.details()}")
         return False
 
 

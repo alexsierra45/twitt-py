@@ -1,3 +1,4 @@
+import asyncio
 import streamlit as st
 import json
 from grpc_client import sign_up, login
@@ -25,8 +26,14 @@ def login_page():
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
-        print("hola")
         response = login(username, password)
+        if response:
+            st.session_state['username'] = username
+            st.session_state['token'] = response['token']
+            st.success("Logged in successfully")
+            st.experimental_rerun()  # Recarga la aplicación para reflejar el estado de inicio de sesión
+        else:
+            st.error("Login failed: " + response['message'])
 
 def sign_up_page():
     st.title("Sign Up")
