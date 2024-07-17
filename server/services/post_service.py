@@ -9,7 +9,7 @@ from interfaces.grpc.proto.posts_service_pb2 import GetPostResponse, CreatePostR
 from interfaces.grpc.proto.posts_service_pb2_grpc import PostServiceServicer, add_PostServiceServicer_to_server
 
 class PostService(PostServiceServicer):
-    def __init__(self, post_persistency, user_persistency):
+    def __init__(self, user_persistency, post_persistency):
         self.post_persistency = post_persistency
         self.user_persistency = user_persistency
 
@@ -111,7 +111,7 @@ class PostService(PostServiceServicer):
         return GetUserPostsResponse(posts=posts)
 
 
-def start_post_service(network, address, post_persistency, user_persistency):
+def start_post_service(network, address, user_persistency, post_persistency):
     logging.info("Post service started")
 
     server = grpc.server(
@@ -123,7 +123,7 @@ def start_post_service(network, address, post_persistency, user_persistency):
         ]
     )
 
-    add_PostServiceServicer_to_server(PostService(post_persistency, user_persistency), server)
+    add_PostServiceServicer_to_server(PostService(user_persistency, post_persistency), server)
     server.add_insecure_port(f"{network}:{address}")
     server.start()
     server.wait_for_termination()
