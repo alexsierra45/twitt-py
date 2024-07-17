@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-import auth_pb2 as auth__pb2
+from proto import users_pb2 as proto_dot_users__pb2
 
 GRPC_GENERATED_VERSION = '1.64.1'
 GRPC_VERSION = grpc.__version__
@@ -20,7 +20,7 @@ except ImportError:
 if _version_not_supported:
     warnings.warn(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in auth_pb2_grpc.py depends on'
+        + f' but the generated code in proto/users_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -30,7 +30,7 @@ if _version_not_supported:
     )
 
 
-class AuthStub(object):
+class UserServiceStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -39,59 +39,61 @@ class AuthStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.SignUp = channel.unary_unary(
-                '/twittpy.Auth/SignUp',
-                request_serializer=auth__pb2.SignUpRequest.SerializeToString,
-                response_deserializer=auth__pb2.SignUpResponse.FromString,
+        self.GetUser = channel.unary_unary(
+                '/twittpy.UserService/GetUser',
+                request_serializer=proto_dot_users__pb2.GetUserRequest.SerializeToString,
+                response_deserializer=proto_dot_users__pb2.GetUserResponse.FromString,
                 _registered_method=True)
-        self.Login = channel.unary_unary(
-                '/twittpy.Auth/Login',
-                request_serializer=auth__pb2.LoginRequest.SerializeToString,
-                response_deserializer=auth__pb2.LoginResponse.FromString,
+        self.EditUser = channel.unary_unary(
+                '/twittpy.UserService/EditUser',
+                request_serializer=proto_dot_users__pb2.EditUserRequest.SerializeToString,
+                response_deserializer=proto_dot_users__pb2.EditUserResponse.FromString,
                 _registered_method=True)
 
 
-class AuthServicer(object):
+class UserServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def SignUp(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+    def GetUser(self, request, context):
+        """Get a user
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def Login(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+    def EditUser(self, request, context):
+        """Edit user's account
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
 
-def add_AuthServicer_to_server(servicer, server):
+def add_UserServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'SignUp': grpc.unary_unary_rpc_method_handler(
-                    servicer.SignUp,
-                    request_deserializer=auth__pb2.SignUpRequest.FromString,
-                    response_serializer=auth__pb2.SignUpResponse.SerializeToString,
+            'GetUser': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetUser,
+                    request_deserializer=proto_dot_users__pb2.GetUserRequest.FromString,
+                    response_serializer=proto_dot_users__pb2.GetUserResponse.SerializeToString,
             ),
-            'Login': grpc.unary_unary_rpc_method_handler(
-                    servicer.Login,
-                    request_deserializer=auth__pb2.LoginRequest.FromString,
-                    response_serializer=auth__pb2.LoginResponse.SerializeToString,
+            'EditUser': grpc.unary_unary_rpc_method_handler(
+                    servicer.EditUser,
+                    request_deserializer=proto_dot_users__pb2.EditUserRequest.FromString,
+                    response_serializer=proto_dot_users__pb2.EditUserResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'twittpy.Auth', rpc_method_handlers)
+            'twittpy.UserService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('twittpy.Auth', rpc_method_handlers)
+    server.add_registered_method_handlers('twittpy.UserService', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
-class Auth(object):
+class UserService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def SignUp(request,
+    def GetUser(request,
             target,
             options=(),
             channel_credentials=None,
@@ -104,9 +106,9 @@ class Auth(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/twittpy.Auth/SignUp',
-            auth__pb2.SignUpRequest.SerializeToString,
-            auth__pb2.SignUpResponse.FromString,
+            '/twittpy.UserService/GetUser',
+            proto_dot_users__pb2.GetUserRequest.SerializeToString,
+            proto_dot_users__pb2.GetUserResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -118,7 +120,7 @@ class Auth(object):
             _registered_method=True)
 
     @staticmethod
-    def Login(request,
+    def EditUser(request,
             target,
             options=(),
             channel_credentials=None,
@@ -131,9 +133,9 @@ class Auth(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/twittpy.Auth/Login',
-            auth__pb2.LoginRequest.SerializeToString,
-            auth__pb2.LoginResponse.FromString,
+            '/twittpy.UserService/EditUser',
+            proto_dot_users__pb2.EditUserRequest.SerializeToString,
+            proto_dot_users__pb2.EditUserResponse.FromString,
             options,
             channel_credentials,
             insecure,
