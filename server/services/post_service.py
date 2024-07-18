@@ -3,10 +3,13 @@ import grpc
 from concurrent import futures
 import time
 import re
+
+from numpy import iterable
 from config import RSA_PUBLIC_KEY_PATH
 from services.interceptors import AuthInterceptor, StreamLoggingInterceptor, UnaryLoggingInterceptor
-from interfaces.grpc.proto.posts_service_pb2 import GetPostResponse, CreatePostResponse, RepostResponse, DeletePostResponse, GetUserPostsResponse
-from interfaces.grpc.proto.posts_service_pb2_grpc import PostServiceServicer, add_PostServiceServicer_to_server
+from interfaces.grpc.proto.posts_pb2 import GetPostResponse, CreatePostResponse, RepostResponse, DeletePostResponse, GetUserPostsResponse
+from interfaces.grpc.proto.posts_pb2_grpc import PostServiceServicer, add_PostServiceServicer_to_server
+from interfaces.grpc.proto.models_pb2 import Post, UserPosts
 
 class PostService(PostServiceServicer):
     def __init__(self, user_persistency, post_persistency):
@@ -34,12 +37,7 @@ class PostService(PostServiceServicer):
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Posts must have content")
 
         post_id = str(time.time_ns())
-        post = {
-            "post_id": post_id,
-            "user_id": user_id,
-            "content": content,
-            "timestamp": int(time.time())
-        }
+        post = Post(post_id = post_id, user_id = user_id, content = content, timestamp = int(time.time()))
 
         err = self.post_persistency.save_post(post)
         if err:
@@ -85,14 +83,14 @@ class PostService(PostServiceServicer):
         if err:
             context.abort(grpc.StatusCode.NOT_FOUND, "Post not found")
 
-        if not self._check_permission(context, post["user_id"]):
-            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Permission denied")
+        # if not self._check_permission(context, post["user_id"]):
+        #     context.abort(grpc.StatusCode.PERMISSION_DENIED, "Permission denied")
 
         err = self.post_persistency.remove_post(post_id)
         if err:
             context.abort(grpc.StatusCode.INTERNAL, "Failed to delete post")
 
-        err = self.post_persistency.remove_from_posts_list(post_id, post["user_id"])
+        err = self.post_persistency.remove_from_posts_list(post_id, post.user_id)
         if err:
             context.abort(grpc.StatusCode.INTERNAL, "Failed to remove post from user list")
 
@@ -104,10 +102,12 @@ class PostService(PostServiceServicer):
         if not self.user_persistency.load_user(user_id):
             context.abort(grpc.StatusCode.NOT_FOUND, "User not found")
 
-        posts, err = self.post_persistency.load_post_list(user_id)
+        posts, err = self.post_persistency.load_posts_list(user_id)
+        
         if err:
             context.abort(grpc.StatusCode.INTERNAL, "Failed to load user posts")
 
+        print(posts)
         return GetUserPostsResponse(posts=posts)
 
 
@@ -124,6 +124,6 @@ def start_post_service(network, address, user_persistency, post_persistency):
     )
 
     add_PostServiceServicer_to_server(PostService(user_persistency, post_persistency), server)
-    server.add_insecure_port(f"{network}:{address}")
+    server.add_insecure_port(address)
     server.start()
     server.wait_for_termination()

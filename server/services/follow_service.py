@@ -90,6 +90,6 @@ def start_follow_service(network, address, user_persistency, follow_persistency)
     )
 
     add_FollowServiceServicer_to_server(FollowService(user_persistency, follow_persistency), server)
-    server.add_insecure_port(f"{network}:{address}")
+    server.add_insecure_port(address)
     server.start()
     server.wait_for_termination()

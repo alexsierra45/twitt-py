@@ -12,9 +12,6 @@ from google.protobuf.internal import builder as _builder
 _sym_db = _symbol_database.Default()
 
 
-from proto import models_pb2 as proto_dot_models__pb2
-
-
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11proto/users.proto\x12\x07twittpy\x1a\x12proto/models.proto\"\"\n\x0eGetUserRequest\x12\x10\n\x08username\x18\x01 \x01(\t\".\n\x0fGetUserResponse\x12\x1b\n\x04user\x18\x01 \x01(\x0b\x32\r.twittpy.User\".\n\x0f\x45\x64itUserRequest\x12\x1b\n\x04user\x18\x01 \x01(\x0b\x32\r.twittpy.User\"\x12\n\x10\x45\x64itUserResponse2\x90\x01\n\x0bUserService\x12>\n\x07GetUser\x12\x17.twittpy.GetUserRequest\x1a\x18.twittpy.GetUserResponse\"\x00\x12\x41\n\x08\x45\x64itUser\x12\x18.twittpy.EditUserRequest\x1a\x19.twittpy.EditUserResponse\"\x00\x62\x06proto3')
 
 _globals = globals()

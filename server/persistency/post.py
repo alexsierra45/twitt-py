@@ -40,13 +40,15 @@ class PostPersitency:
 
     def add_to_posts_list(self, post_id, username):
         path = os.path.join("User", username.lower(), "Posts")
-        posts, err = self.load_posts_list(username)
+        user_posts, err = load(self.node, path, UserPosts())
+        list = []
 
-        if err:
-            return err
+        if not err:
+            list = user_posts.posts_ids
 
-        posts.posts_ids.append(post_id)
-        err = save(self.node, posts, path)
+        list.append(post_id)
+        print(list)
+        err = save(self.node, UserPosts(posts_ids = list), path)
 
         if err:
             return grpc.StatusCode.INTERNAL("Failed to save post to user: {}".format(err))
@@ -55,13 +57,13 @@ class PostPersitency:
 
     def remove_from_posts_list(self, post_id, username):
         path = os.path.join("User", username.lower(), "Posts")
-        posts, err = self.load_posts_list(username)
+        posts, err = load(self.node, path, UserPosts())
 
         if err:
             return err
 
-        posts.posts_ids = [u for u in posts.posts_ids if u != post_id]
-        err = save(self.node, posts, path)
+        list = [u for u in posts.posts_ids if u != post_id]
+        err = save(self.node, UserPosts(posts_ids = list), path)
 
         if err:
             return grpc.StatusCode.INTERNAL("Failed to remove post from user: {}".format(err))
@@ -71,11 +73,18 @@ class PostPersitency:
     def load_posts_list(self, username):
         path = os.path.join("User", username.lower(), "Posts")
         user_posts, err = load(self.node, path, UserPosts())
+        print (user_posts)
+        list = []
 
         if err == grpc.StatusCode.NOT_FOUND:
-            return UserPosts(posts_ids=[]), None
+            return list, None
 
         if err:
             return None, grpc.StatusCode.INTERNAL("Failed to load user posts: {}".format(err))
 
-        return user_posts, None
+        for post_id in user_posts.posts_ids:
+            post, err = self.load_post(post_id)
+            if err:
+                return None, err
+            list.append(post)
+        return list, None

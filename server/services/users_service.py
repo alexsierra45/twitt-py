@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from config import PASSWORD, RSA_PRIVATE_KEY_PATH, RSA_PUBLIC_KEY_PATH
 from persistency.user import UserPersitency
-from server.services.auth_service import is_email_valid
+from services.auth_service import is_email_valid
 from services.interceptors import AuthInterceptor, StreamLoggingInterceptor, UnaryLoggingInterceptor
 from interfaces.grpc.proto.users_pb2 import GetUserResponse, EditUserResponse
 from interfaces.grpc.proto.users_pb2_grpc import UserServiceServicer, add_UserServiceServicer_to_server

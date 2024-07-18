@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from proto import posts_service_pb2 as proto_dot_posts__service__pb2
+from interfaces.grpc.proto import posts_pb2 as proto_dot_posts__pb2
 
 GRPC_GENERATED_VERSION = '1.64.1'
 GRPC_VERSION = grpc.__version__
@@ -20,7 +20,7 @@ except ImportError:
 if _version_not_supported:
     warnings.warn(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in proto/posts_service_pb2_grpc.py depends on'
+        + f' but the generated code in proto/posts_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -41,28 +41,28 @@ class PostServiceStub(object):
         """
         self.CreatePost = channel.unary_unary(
                 '/twittpy.PostService/CreatePost',
-                request_serializer=proto_dot_posts__service__pb2.CreatePostRequest.SerializeToString,
-                response_deserializer=proto_dot_posts__service__pb2.CreatePostResponse.FromString,
+                request_serializer=proto_dot_posts__pb2.CreatePostRequest.SerializeToString,
+                response_deserializer=proto_dot_posts__pb2.CreatePostResponse.FromString,
                 _registered_method=True)
         self.GetPost = channel.unary_unary(
                 '/twittpy.PostService/GetPost',
-                request_serializer=proto_dot_posts__service__pb2.GetPostRequest.SerializeToString,
-                response_deserializer=proto_dot_posts__service__pb2.GetPostResponse.FromString,
+                request_serializer=proto_dot_posts__pb2.GetPostRequest.SerializeToString,
+                response_deserializer=proto_dot_posts__pb2.GetPostResponse.FromString,
                 _registered_method=True)
         self.Repost = channel.unary_unary(
                 '/twittpy.PostService/Repost',
-                request_serializer=proto_dot_posts__service__pb2.RepostRequest.SerializeToString,
-                response_deserializer=proto_dot_posts__service__pb2.RepostResponse.FromString,
+                request_serializer=proto_dot_posts__pb2.RepostRequest.SerializeToString,
+                response_deserializer=proto_dot_posts__pb2.RepostResponse.FromString,
                 _registered_method=True)
         self.DeletePost = channel.unary_unary(
                 '/twittpy.PostService/DeletePost',
-                request_serializer=proto_dot_posts__service__pb2.DeletePostRequest.SerializeToString,
-                response_deserializer=proto_dot_posts__service__pb2.DeletePostResponse.FromString,
+                request_serializer=proto_dot_posts__pb2.DeletePostRequest.SerializeToString,
+                response_deserializer=proto_dot_posts__pb2.DeletePostResponse.FromString,
                 _registered_method=True)
         self.GetUserPosts = channel.unary_unary(
                 '/twittpy.PostService/GetUserPosts',
-                request_serializer=proto_dot_posts__service__pb2.GetUserPostsRequest.SerializeToString,
-                response_deserializer=proto_dot_posts__service__pb2.GetUserPostsResponse.FromString,
+                request_serializer=proto_dot_posts__pb2.GetUserPostsRequest.SerializeToString,
+                response_deserializer=proto_dot_posts__pb2.GetUserPostsResponse.FromString,
                 _registered_method=True)
 
 
@@ -109,28 +109,28 @@ def add_PostServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'CreatePost': grpc.unary_unary_rpc_method_handler(
                     servicer.CreatePost,
-                    request_deserializer=proto_dot_posts__service__pb2.CreatePostRequest.FromString,
-                    response_serializer=proto_dot_posts__service__pb2.CreatePostResponse.SerializeToString,
+                    request_deserializer=proto_dot_posts__pb2.CreatePostRequest.FromString,
+                    response_serializer=proto_dot_posts__pb2.CreatePostResponse.SerializeToString,
             ),
             'GetPost': grpc.unary_unary_rpc_method_handler(
                     servicer.GetPost,
-                    request_deserializer=proto_dot_posts__service__pb2.GetPostRequest.FromString,
-                    response_serializer=proto_dot_posts__service__pb2.GetPostResponse.SerializeToString,
+                    request_deserializer=proto_dot_posts__pb2.GetPostRequest.FromString,
+                    response_serializer=proto_dot_posts__pb2.GetPostResponse.SerializeToString,
             ),
             'Repost': grpc.unary_unary_rpc_method_handler(
                     servicer.Repost,
-                    request_deserializer=proto_dot_posts__service__pb2.RepostRequest.FromString,
-                    response_serializer=proto_dot_posts__service__pb2.RepostResponse.SerializeToString,
+                    request_deserializer=proto_dot_posts__pb2.RepostRequest.FromString,
+                    response_serializer=proto_dot_posts__pb2.RepostResponse.SerializeToString,
             ),
             'DeletePost': grpc.unary_unary_rpc_method_handler(
                     servicer.DeletePost,
-                    request_deserializer=proto_dot_posts__service__pb2.DeletePostRequest.FromString,
-                    response_serializer=proto_dot_posts__service__pb2.DeletePostResponse.SerializeToString,
+                    request_deserializer=proto_dot_posts__pb2.DeletePostRequest.FromString,
+                    response_serializer=proto_dot_posts__pb2.DeletePostResponse.SerializeToString,
             ),
             'GetUserPosts': grpc.unary_unary_rpc_method_handler(
                     servicer.GetUserPosts,
-                    request_deserializer=proto_dot_posts__service__pb2.GetUserPostsRequest.FromString,
-                    response_serializer=proto_dot_posts__service__pb2.GetUserPostsResponse.SerializeToString,
+                    request_deserializer=proto_dot_posts__pb2.GetUserPostsRequest.FromString,
+                    response_serializer=proto_dot_posts__pb2.GetUserPostsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -158,8 +158,8 @@ class PostService(object):
             request,
             target,
             '/twittpy.PostService/CreatePost',
-            proto_dot_posts__service__pb2.CreatePostRequest.SerializeToString,
-            proto_dot_posts__service__pb2.CreatePostResponse.FromString,
+            proto_dot_posts__pb2.CreatePostRequest.SerializeToString,
+            proto_dot_posts__pb2.CreatePostResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -185,8 +185,8 @@ class PostService(object):
             request,
             target,
             '/twittpy.PostService/GetPost',
-            proto_dot_posts__service__pb2.GetPostRequest.SerializeToString,
-            proto_dot_posts__service__pb2.GetPostResponse.FromString,
+            proto_dot_posts__pb2.GetPostRequest.SerializeToString,
+            proto_dot_posts__pb2.GetPostResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -212,8 +212,8 @@ class PostService(object):
             request,
             target,
             '/twittpy.PostService/Repost',
-            proto_dot_posts__service__pb2.RepostRequest.SerializeToString,
-            proto_dot_posts__service__pb2.RepostResponse.FromString,
+            proto_dot_posts__pb2.RepostRequest.SerializeToString,
+            proto_dot_posts__pb2.RepostResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -239,8 +239,8 @@ class PostService(object):
             request,
             target,
             '/twittpy.PostService/DeletePost',
-            proto_dot_posts__service__pb2.DeletePostRequest.SerializeToString,
-            proto_dot_posts__service__pb2.DeletePostResponse.FromString,
+            proto_dot_posts__pb2.DeletePostRequest.SerializeToString,
+            proto_dot_posts__pb2.DeletePostResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -266,8 +266,8 @@ class PostService(object):
             request,
             target,
             '/twittpy.PostService/GetUserPosts',
-            proto_dot_posts__service__pb2.GetUserPostsRequest.SerializeToString,
-            proto_dot_posts__service__pb2.GetUserPostsResponse.FromString,
+            proto_dot_posts__pb2.GetUserPostsRequest.SerializeToString,
+            proto_dot_posts__pb2.GetUserPostsResponse.FromString,
             options,
             channel_credentials,
             insecure,
