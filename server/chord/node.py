@@ -1,3 +1,4 @@
+import logging
 import socket
 import threading
 import sys
@@ -7,7 +8,8 @@ import hashlib
 from chord.constants import *
 from chord.node_reference import ChordNodeReference
 from chord.storage import RAMStorage
-from chord.utils import getShaRepr
+from chord.utils import getShaRepr, inbetween
+from chord.finger_table import FingerTable
 
 
 # Class representing a Chord node
@@ -17,50 +19,29 @@ class ChordNode:
         self.ip = ip
         self.port = port
         self.ref = ChordNodeReference(self.ip, self.port)
+
         self.succ = self.ref  # Initial successor is itself
+        self.succ_lock = threading.RLock() 
+
         self.pred = None  # Initially no predecessor
-        self.m = m  # Number of bits in the hash/key space
-        self.finger = [self.ref] * self.m  # Finger table
-        self.next = 0  # Finger table index to fix next
+        self.pred_lock = threading.RLock()
+
+        self.finger = FingerTable(self, m)
         self.storage = RAMStorage()  # Dictionary to store key-value pairs
 
         # Start background threads for stabilization, fixing fingers, and checking predecessor
         threading.Thread(target=self.stabilize, daemon=True).start()  # Start stabilize thread
-        threading.Thread(target=self.fix_fingers, daemon=True).start()  # Start fix fingers thread
+        threading.Thread(target=self.finger.fix_fingers, daemon=True).start()  # Start fix fingers thread
         threading.Thread(target=self.check_predecessor, daemon=True).start()  # Start check predecessor thread
         threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
 
-    # Helper method to check if a value is in the range (start, end]
-    def _inbetween(self, k: int, start: int, end: int) -> bool:
-        if start < end:
-            return start < k <= end
-        else:  # The interval wraps around 0
-            return start < k or k <= end
-
-    # Method to find the successor of a given id
-    def find_succ(self, id: int) -> 'ChordNodeReference':
-        node = self.find_pred(id)  # Find predecessor of id
-        return node.succ  # Return successor of that node
-
-    # Method to find the predecessor of a given id
-    def find_pred(self, id: int) -> 'ChordNodeReference':
-        node = self
-        while not self._inbetween(id, node.id, node.succ.id):
-            node = node.closest_preceding_finger(id)
-        return node
-
-    # Method to find the closest preceding finger of a given id
-    def closest_preceding_finger(self, id: int) -> 'ChordNodeReference':
-        for i in range(self.m - 1, -1, -1):
-            if self.finger[i] and self._inbetween(self.finger[i].id, self.id, id):
-                return self.finger[i]
-        return self.ref
-
     # Method to join a Chord network using 'node' as an entry point
     def join(self, node: 'ChordNodeReference'):
+        # print(node)
         if node:
             self.pred = None
             self.succ = node.find_successor(self.id)
+            # print(self.succ)
             self.succ.notify(self.ref)
         else:
             self.succ = self.ref
@@ -70,70 +51,76 @@ class ChordNode:
     def stabilize(self):
         while True:
             try:
-                if self.succ.id != self.id:
-                    print('stabilize')
-                    x = self.succ.pred
-                    if x.id != self.id:
-                        print(x)
-                        if x and self._inbetween(x.id, self.id, self.succ.id):
-                            self.succ = x
-                        self.succ.notify(self.ref)
-            except Exception as e:
-                print(f"Error in stabilize: {e}")
+                with self.succ_lock:
+                    if self.succ.id != self.id or (self.succ.id == self.id and self.succ.pred.id != self.id):
+                        logging.info('Stabilizing node')
 
-            print(f"successor : {self.succ} predecessor {self.pred}")
+                        ok = self.succ.ping()
+                        if ok:
+                            pred = self.succ.pred
+                            if pred.id != self.id:
+                                if pred and inbetween(pred.id, self.id, self.succ.id):
+                                    self.succ = pred
+                                self.succ.notify(self.ref)
+                            logging.info('Node stabilized')
+                        else:
+                            self.succ = self.ref
+            except Exception as e:
+                logging.error(f"Error in stabilize: {e}")
+
+            logging.info(f"successor : {self.succ} predecessor {self.pred}")
             time.sleep(10)
 
     # Notify method to inform the node about another node
     def notify(self, node: 'ChordNodeReference'):
         if node.id == self.id:
             pass
-        if not self.pred or self._inbetween(node.id, self.pred.id, self.id):
+        if not self.pred or inbetween(node.id, self.pred.id, self.id):
+            logging.info(f'Notify to {self.id}')
             if not self.pred and self.id == self.succ.id:
                 self.succ = node
                 self.succ.notify(self.ref)
             self.pred = node
 
-    # Fix fingers method to periodically update the finger table
-    def fix_fingers(self):
-        while True:
-            try:
-                self.next += 1
-                if self.next >= self.m:
-                    self.next = 0
-                self.finger[self.next] = self.find_succ((self.id + 2 ** self.next) % 2 ** self.m)
-            except Exception as e:
-                print(f"Error in fix_fingers: {e}")
-            time.sleep(10)
-
     # Check predecessor method to periodically verify if the predecessor is alive
     def check_predecessor(self):
         while True:
             try:
-                if self.pred:
-                    self.pred.check_predecessor()
+                pred = self.pred
+                if not pred:
+                    time.sleep(10)
+                    continue
+                logging.info(f'Check predecessor {pred.id}')
+
+                ok = pred.ping()
+                if ok:
+                    time.sleep(10)
+                    continue
+                logging.info(f'Predecessor {pred.id} has failed')
+
+                self.pred = None
             except Exception as e:
                 self.pred = None
             time.sleep(10)
 
-    def check_successor(self):
-        while True:
-            try:
-                if self.pred:
-                    self.pred.check_predecessor()
-            except Exception as e:
-                self.pred = None
-            time.sleep(10)
+    # def check_successor(self):
+    #     while True:
+    #         try:
+    #             if self.pred:
+    #                 self.pred.check_predecessor()
+    #         except Exception as e:
+    #             self.pred = None
+    #         time.sleep(10)
 
     def set_key(self, key: str, value: str) -> bool:
         key_hash = getShaRepr(key)
-        node = self.find_succ(key_hash)
+        node = self.finger.find_succ(key_hash)
         return node.store_key(key, value)
 
     # Store key method to store a key-value pair and replicate to the successor
     def store_key(self, key: str, value: str) -> bool:
         # key_hash = getShaRepr(key)
-        # node = self.find_succ(key_hash)
+        # node = self.finger.find_succ(key_hash)
         # node.store_key(key, value)
         # self.storage[key] = value  # Store in the current node
         # self.succ.store_key(key, value)  # Replicate to the successor    
@@ -141,13 +128,13 @@ class ChordNode:
     
     def get_key(self, key: str) -> str:
         key_hash = getShaRepr(key)
-        node = self.find_succ(key_hash)
+        node = self.finger.find_succ(key_hash)
         return node.retrieve_key(key)
 
     # Retrieve key method to get a value for a given key
     def retrieve_key(self, key: str) -> str:
         # key_hash = getShaRepr(key)
-        # node = self.find_succ(key_hash)
+        # node = self.finger.find_succ(key_hash)
         # return node.retrieve_key(key)
         return self.storage.get(key)
 
@@ -160,7 +147,7 @@ class ChordNode:
 
             while True:
                 conn, addr = s.accept()
-                print(f'new connection from {addr}')
+                logging.info(f'New connection from {addr}')
 
                 data = conn.recv(1024).decode().split(',')
 
@@ -170,10 +157,10 @@ class ChordNode:
 
                 if option == FIND_SUCCESSOR:
                     id = int(data[1])
-                    data_resp = self.find_succ(id)
+                    data_resp = self.finger.find_succ(id)
                 elif option == FIND_PREDECESSOR:
                     id = int(data[1])
-                    data_resp = self.find_pred(id)
+                    data_resp = self.finger.find_pred(id)
                 elif option == GET_SUCCESSOR:
                     data_resp = self.succ if self.succ else self.ref
                 elif option == GET_PREDECESSOR:
@@ -186,13 +173,15 @@ class ChordNode:
                     pass
                 elif option == CLOSEST_PRECEDING_FINGER:
                     id = int(data[1])
-                    data_resp = self.closest_preceding_finger(id)
+                    data_resp = self.finger.closest_preceding_finger(id)
                 elif option == STORE_KEY:
                     key, value = data[1], data[2]
                     server_response = self.store_key(key, value)
                 elif option == RETRIEVE_KEY:
                     key = data[1]
                     server_response = self.retrieve_key(key)
+                elif option == PING:
+                    server_response = ALIVE
 
                 response = None
                 if data_resp:

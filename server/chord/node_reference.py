@@ -1,3 +1,4 @@
+import logging
 import socket
 from chord.constants import *
 from chord.utils import getShaRepr
@@ -18,7 +19,7 @@ class ChordNodeReference:
                 s.sendall(f'{op},{data}'.encode('utf-8'))
                 return s.recv(1024)
         except Exception as e:
-            print(f"Error sending data: {e}")
+            logging.error(f"Error sending data: {e}")
             return b''
 
     # Method to find the successor of a given id
@@ -58,7 +59,7 @@ class ChordNodeReference:
 
     # Method to store a key-value pair in the current node
     def store_key(self, key: str, value: str):
-        response = self._send_data(STORE_KEY, f'{key},{value}')
+        response = self._send_data(STORE_KEY, f'{key},{value}').decode()
         return int(response) == TRUE
 
     # Method to retrieve a value for a given key from the current node
@@ -70,6 +71,10 @@ class ChordNodeReference:
     def delete_key(self, key: str): 
         response = self._send_data(DELETE_KEY, key).decode()
         return int(response) == TRUE
+    
+    def ping(self):
+        response = self._send_data(PING).decode()
+        return response == ALIVE
 
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'

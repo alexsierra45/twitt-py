@@ -31,8 +31,9 @@ class FingerTable:
         while not inbetween(id, node.id, node.succ.id):
             if f:
                 f = False
-                node = node.ref
-            node = node.closest_preceding_finger(id)
+                node = node.finger.closest_preceding_finger(id)
+            else:
+                node = node.closest_preceding_finger(id)
         return node.ref if f else node
     
     # Method to find the closest preceding finger of a given id
