@@ -14,6 +14,7 @@ class ChordNodeReference:
     # Internal method to send data to the referenced node
     def _send_data(self, op: int, data: str = None) -> bytes:
         try:
+            print(op)
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.ip, self.port))
                 s.sendall(f'{op},{data}'.encode('utf-8'))
@@ -75,6 +76,14 @@ class ChordNodeReference:
     def ping(self):
         response = self._send_data(PING).decode()
         return response == ALIVE
+    
+    def stop_discovering(self):
+        self._send_data(STOP_DISCOVERING)
+    
+    def join(self, node: 'ChordNodeReference'):
+        response = self._send_data(JOIN, f'{node.id},{node.ip}').decode()
+        print(response)
+        return int(response) == TRUE
 
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'

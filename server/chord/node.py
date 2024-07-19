@@ -1,15 +1,14 @@
 import logging
 import socket
 import threading
-import sys
 import time
-import hashlib
 
 from chord.constants import *
 from chord.node_reference import ChordNodeReference
 from chord.storage import RAMStorage
 from chord.utils import getShaRepr, inbetween
 from chord.finger_table import FingerTable
+from chord.discoverer import Discoverer
 
 
 # Class representing a Chord node
@@ -29,23 +28,23 @@ class ChordNode:
         self.finger = FingerTable(self, m)
         self.storage = RAMStorage()  # Dictionary to store key-value pairs
 
+        self.discoverer = Discoverer(self, self.succ_lock, self.pred_lock) # Multicast discoverer
+
         # Start background threads for stabilization, fixing fingers, and checking predecessor
         threading.Thread(target=self.stabilize, daemon=True).start()  # Start stabilize thread
-        threading.Thread(target=self.finger.fix_fingers, daemon=True).start()  # Start fix fingers thread
         threading.Thread(target=self.check_predecessor, daemon=True).start()  # Start check predecessor thread
         threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
 
-    # Method to join a Chord network using 'node' as an entry point
-    def join(self, node: 'ChordNodeReference'):
-        # print(node)
-        if node:
-            self.pred = None
-            self.succ = node.find_successor(self.id)
-            # print(self.succ)
-            self.succ.notify(self.ref)
-        else:
-            self.succ = self.ref
-            self.pred = None
+    # # Method to join a Chord network using 'node' as an entry point
+    # def join(self, node: 'ChordNodeReference'):
+    #     # print(node)
+    #     if node:
+    #         self.pred = None
+    #         self.succ = node.find_successor(self.id)
+    #         self.succ.notify(self.ref)
+    #     else:
+    #         self.succ = self.ref
+    #         self.pred = None
 
     # Stabilize method to periodically verify and update the successor and predecessor
     def stabilize(self):
@@ -73,6 +72,7 @@ class ChordNode:
 
     # Notify method to inform the node about another node
     def notify(self, node: 'ChordNodeReference'):
+        print('hola baby')
         if node.id == self.id:
             pass
         if not self.pred or inbetween(node.id, self.pred.id, self.id):
@@ -87,30 +87,15 @@ class ChordNode:
         while True:
             try:
                 pred = self.pred
-                if not pred:
-                    time.sleep(10)
-                    continue
-                logging.info(f'Check predecessor {pred.id}')
-
-                ok = pred.ping()
-                if ok:
-                    time.sleep(10)
-                    continue
-                logging.info(f'Predecessor {pred.id} has failed')
-
-                self.pred = None
+                if pred:
+                    logging.info(f'Check predecessor {pred.id}')
+                    ok = pred.ping()
+                    if not ok:
+                        logging.info(f'Predecessor {pred.id} has failed')
+                        self.pred = None
             except Exception as e:
                 self.pred = None
             time.sleep(10)
-
-    # def check_successor(self):
-    #     while True:
-    #         try:
-    #             if self.pred:
-    #                 self.pred.check_predecessor()
-    #         except Exception as e:
-    #             self.pred = None
-    #         time.sleep(10)
 
     def set_key(self, key: str, value: str) -> bool:
         key_hash = getShaRepr(key)
@@ -182,6 +167,12 @@ class ChordNode:
                     server_response = self.retrieve_key(key)
                 elif option == PING:
                     server_response = ALIVE
+                elif option == STOP_DISCOVERING:
+                    self.discoverer.stop_discovering()
+                elif option == JOIN:
+                    id = int(data[1])
+                    ip = data[2]
+                    server_response = self.discoverer.join(ChordNodeReference(ip, self.port))
 
                 response = None
                 if data_resp:
