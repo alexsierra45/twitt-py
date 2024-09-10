@@ -1,5 +1,7 @@
 FROM python:3.11-slim
 
+RUN apt-get update && apt-get install -y iputils-ping
+
 COPY requirements.txt .
 
 # Install necessary build tools and dependencies
