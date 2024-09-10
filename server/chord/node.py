@@ -28,23 +28,12 @@ class ChordNode:
         self.finger = FingerTable(self, m)
         self.storage = RAMStorage()  # Dictionary to store key-value pairs
 
-        self.discoverer = Discoverer(self, self.succ_lock, self.pred_lock) # Multicast discoverer
+        self.discoverer = Discoverer(self, self.succ_lock, self.pred_lock) # Broadcast discoverer
 
         # Start background threads for stabilization, fixing fingers, and checking predecessor
+        threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
         threading.Thread(target=self.stabilize, daemon=True).start()  # Start stabilize thread
         threading.Thread(target=self.check_predecessor, daemon=True).start()  # Start check predecessor thread
-        threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
-
-    # # Method to join a Chord network using 'node' as an entry point
-    # def join(self, node: 'ChordNodeReference'):
-    #     # print(node)
-    #     if node:
-    #         self.pred = None
-    #         self.succ = node.find_successor(self.id)
-    #         self.succ.notify(self.ref)
-    #     else:
-    #         self.succ = self.ref
-    #         self.pred = None
 
     # Stabilize method to periodically verify and update the successor and predecessor
     def stabilize(self):
@@ -53,7 +42,7 @@ class ChordNode:
                 with self.succ_lock:
                     if self.succ.id != self.id or (self.succ.id == self.id and self.succ.pred.id != self.id):
                         logging.info('Stabilizing node')
-
+                        
                         ok = self.succ.ping()
                         if ok:
                             pred = self.succ.pred
@@ -72,15 +61,16 @@ class ChordNode:
 
     # Notify method to inform the node about another node
     def notify(self, node: 'ChordNodeReference'):
-        print('hola baby')
         if node.id == self.id:
-            pass
+            return
         if not self.pred or inbetween(node.id, self.pred.id, self.id):
-            logging.info(f'Notify to {self.id}')
-            if not self.pred and self.id == self.succ.id:
-                self.succ = node
-                self.succ.notify(self.ref)
+            logging.info(f'Notify from {node.id}')
+            # if not self.pred and self.id == self.succ.id:
+            #     self.succ = node
+            #     self.succ.notify(self.ref)
             self.pred = node
+        else:
+            logging.info(f'No update needed for node {node.id}')
 
     # Check predecessor method to periodically verify if the predecessor is alive
     def check_predecessor(self):
@@ -132,12 +122,14 @@ class ChordNode:
 
             while True:
                 conn, addr = s.accept()
-                logging.info(f'New connection from {addr}')
 
                 data = conn.recv(1024).decode().split(',')
 
                 data_resp = None
                 option = int(data[0])
+
+                logging.info(f'New connection from {addr}, operation {option}')
+
                 server_response = ''
 
                 if option == FIND_SUCCESSOR:

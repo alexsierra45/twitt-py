@@ -17,4 +17,5 @@ JOIN = 13
 FALSE = 0
 TRUE = 1
 
+# Messages
 ALIVE = 'Im alive'

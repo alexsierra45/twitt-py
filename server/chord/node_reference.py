@@ -14,13 +14,12 @@ class ChordNodeReference:
     # Internal method to send data to the referenced node
     def _send_data(self, op: int, data: str = None) -> bytes:
         try:
-            print(op)
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.ip, self.port))
                 s.sendall(f'{op},{data}'.encode('utf-8'))
                 return s.recv(1024)
         except Exception as e:
-            logging.error(f"Error sending data: {e}")
+            logging.error(f"Error sending data: {e}, operation: {op}")
             return b''
 
     # Method to find the successor of a given id
@@ -59,9 +58,9 @@ class ChordNodeReference:
         return ChordNodeReference(response[1], self.port)
 
     # Method to store a key-value pair in the current node
-    def store_key(self, key: str, value: str):
+    def store_key(self, key: str, value: str) -> bool:
         response = self._send_data(STORE_KEY, f'{key},{value}').decode()
-        return int(response) == TRUE
+        return False if response == '' else int(response) == TRUE
 
     # Method to retrieve a value for a given key from the current node
     def retrieve_key(self, key: str) -> str:
@@ -69,9 +68,9 @@ class ChordNodeReference:
         return response
     
     # Method to delete a key-value pair in the current node
-    def delete_key(self, key: str): 
+    def delete_key(self, key: str) -> bool: 
         response = self._send_data(DELETE_KEY, key).decode()
-        return int(response) == TRUE
+        return False if response == '' else int(response) == TRUE
     
     def ping(self):
         response = self._send_data(PING).decode()
@@ -80,10 +79,9 @@ class ChordNodeReference:
     def stop_discovering(self):
         self._send_data(STOP_DISCOVERING)
     
-    def join(self, node: 'ChordNodeReference'):
+    def join(self, node: 'ChordNodeReference') -> bool:
         response = self._send_data(JOIN, f'{node.id},{node.ip}').decode()
-        print(response)
-        return int(response) == TRUE
+        return False if response == '' else int(response) == TRUE
 
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'

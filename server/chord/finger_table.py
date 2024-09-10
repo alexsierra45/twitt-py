@@ -29,14 +29,14 @@ class FingerTable:
     # Method to find the predecessor of a given id
     def find_pred(self, id: int) -> 'ChordNodeReference':
         node = self.node
-        f = True
+        first_time = True
         while not inbetween(id, node.id, node.succ.id):
-            if f:
-                f = False
+            if first_time:
+                first_time = False
                 node = node.finger.closest_preceding_finger(id)
             else:
                 node = node.closest_preceding_finger(id)
-        return node.ref if f else node
+        return node.ref if first_time else node
     
     # Method to find the closest preceding finger of a given id
     def closest_preceding_finger(self, id: int) -> ChordNodeReference:
