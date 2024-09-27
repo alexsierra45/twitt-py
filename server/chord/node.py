@@ -10,6 +10,7 @@ from chord.node_reference import ChordNodeReference
 from chord.storage import RAMStorage
 from chord.utils import getShaRepr, inbetween
 from chord.finger_table import FingerTable
+from chord.timer import Timer
 
 
 # Class representing a Chord node
@@ -26,8 +27,11 @@ class ChordNode:
         self.pred = None  # Initially no predecessor
         self.pred_lock = threading.RLock()
 
-        self.finger = FingerTable(self, m)
-        self.storage = RAMStorage()  # Dictionary to store key-value pairs
+        self.finger = FingerTable(self, m) # Finger table
+        self.storage = RAMStorage() # Dictionary to store key-value pairs
+        self.timer = Timer() # Time attendant
+
+        self.shutdown_event = threading.Event()
 
         # Start background threads for stabilization, fixing fingers, and checking predecessor
         threading.Thread(target=self.stabilize, daemon=True).start()  # Start stabilize thread
