@@ -172,9 +172,8 @@ class ChordNode:
                 elif option == GET_PREDECESSOR:
                     data_resp = self.pred if self.pred else self.ref
                 elif option == NOTIFY:
-                    id = int(data[1])
-                    ip = data[2]
-                    self.notify(ChordNodeReference(ip, self.port))
+                    ip, port = int(data[1]), int(data[2])
+                    self.notify(ChordNodeReference(ip, port))
                 elif option == CHECK_PREDECESSOR:
                     pass
                 elif option == CLOSEST_PRECEDING_FINGER:

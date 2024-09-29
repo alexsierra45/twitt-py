@@ -46,7 +46,7 @@ class ChordNodeReference:
 
     # Method to notify the current node about another node
     def notify(self, node: 'ChordNodeReference'):
-        self._send_data(NOTIFY, f'{node.id},{node.ip}')
+        self._send_data(NOTIFY, f'{node.ip},{node.port}')
 
     # Method to check if the predecessor is alive
     def check_predecessor(self):
