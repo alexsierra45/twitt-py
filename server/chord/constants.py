@@ -10,9 +10,12 @@ STORE_KEY = 8
 RETRIEVE_KEY = 9
 DELETE_KEY = 10
 PING = 11
+PING_LEADER = 12
+ELECTION = 13
 
 # Booleans
 FALSE = 0
 TRUE = 1
 
+# Messages
 ALIVE = 'Im alive'

@@ -11,6 +11,7 @@ from chord.storage import RAMStorage
 from chord.utils import getShaRepr, inbetween
 from chord.finger_table import FingerTable
 from chord.timer import Timer
+from chord.elector import Elector
 
 
 # Class representing a Chord node
@@ -27,9 +28,13 @@ class ChordNode:
         self.pred = None  # Initially no predecessor
         self.pred_lock = threading.RLock()
 
+        self.leader = self.ref # Initial ring leader is itself
+        self.leader_lock = threading.RLock
+
         self.finger = FingerTable(self, m) # Finger table
         self.storage = RAMStorage() # Dictionary to store key-value pairs
-        self.timer = Timer() # Time attendant
+        self.timer = Timer() # Node clock
+        self.elector = Elector(self, self.timer) # Leader regulator
 
         self.shutdown_event = threading.Event()
 
@@ -53,7 +58,7 @@ class ChordNode:
 
     # Stabilize method to periodically verify and update the successor and predecessor
     def stabilize(self):
-        while True:
+        while self.shutdown_event.is_set():
             try:
                 with self.succ_lock:
                     if self.succ.id != self.id or (self.succ.id == self.id and self.succ.pred.id != self.id):
@@ -88,7 +93,7 @@ class ChordNode:
 
     # Check predecessor method to periodically verify if the predecessor is alive
     def check_predecessor(self):
-        while True:
+        while self.shutdown_event.is_set():
             try:
                 pred = self.pred
                 if not pred:
@@ -186,6 +191,9 @@ class ChordNode:
                     server_response = self.retrieve_key(key)
                 elif option == PING:
                     server_response = ALIVE
+                elif option == PING_LEADER:
+                    id, time = int(data[1]), int(data[2] )
+                    server_response = self.elector.ping_leader(id, time)
 
                 response = None
                 if data_resp:

@@ -30,4 +30,4 @@ class Timer:
             with self.time_lock:
                 self.time_counter += 1
                 self.node_timers[self.node.id] += 1
-            time.sleep(1)  
+            time.sleep(1)

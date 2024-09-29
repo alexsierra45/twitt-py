@@ -75,6 +75,11 @@ class ChordNodeReference:
     def ping(self):
         response = self._send_data(PING).decode()
         return response == ALIVE
+    
+    def ping_leader(self, id: int, time: int):
+        response = self._send_data(PING_LEADER, f'{id},{time}').decode()
+        return int(response)
+
 
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'
