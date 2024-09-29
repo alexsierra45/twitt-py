@@ -32,7 +32,7 @@ from venv import logger
 import grpc
 import jwt
 from utils import AuthInterceptor
-from proto import auth_pb2, auth_pb2_grpc, models_pb2, models_pb2_grpc, posts_service_pb2, posts_service_pb2_grpc, follow_pb2, follow_pb2_grpc, users_pb2_grpc
+from proto import auth_pb2, auth_pb2_grpc, models_pb2, models_pb2_grpc, posts_service_pb2, posts_service_pb2_grpc, follow_pb2, follow_pb2_grpc, users_pb2_grpc, users_pb2
 
 # def decode_token(token) -> Optional[dict]:
 #     with open('client/key/pub.pem', 'rb') as pub:
@@ -175,5 +175,15 @@ def get_following(user_id, token):
         logger.error(f"An error occurred fetching the following list: {error.code()}: {error.details()}")
         return None
 
+def exists_user(user_id, token):
+    user_channel = get_authenticated_channel('localhost:50001',token)
+    user_stub = users_pb2_grpc.FollowServiceStub(user_channel)
+    request = users_pb2.GetUserRequest(username=user_id)
+    try:
+        response = user_stub.GetUser(request)
+        return response.following_usernames
+    except grpc.RpcError as error:
+        logger.error(f"An error occurred fetching the following list: {error.code()}: {error.details()}")
+        return None
 
 

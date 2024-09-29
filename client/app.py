@@ -163,12 +163,12 @@ def home():
             st.error("Failed to create post")
 
 
-def profile():
+def following():
     token = st.session_state['token']
-    st.title("Profile")
+    st.title("Following Page")
     st.subheader(f"Username: {st.session_state['username']}")
-    
-    st.subheader("Following")
+
+    st.subheader("Following these users")
     following = get_following(st.session_state['username'], token)
     if following:
         for user in following:
@@ -177,14 +177,20 @@ def profile():
         st.write("You are not following anyone.")
 
     st.subheader("Follow new users")
-    all_usernames = [user.username for user in get_user_posts(st.session_state['username'], token)]  # Assuming get_user_posts returns all users' posts
-    new_follow = st.selectbox("Select user to follow", [user for user in all_usernames if user != st.session_state['username']])
-    if st.button("Follow"):
-        if follow_user(st.session_state['username'], new_follow, token):
-            st.success(f"Followed {new_follow} successfully")
-            st.experimental_rerun()
+    search_username = st.text_input("Search for a user by username")
+
+    if search_username:
+        # user_exists = get_user_by_username(search_username)  # Esta función debe devolver el usuario si existe
+        if True:
+            st.write(f"User found: {search_username}")
+            if st.button(f"Follow {search_username}"):
+                if follow_user(st.session_state['username'], search_username, token):
+                    st.success(f"Followed {search_username} successfully")
+                    st.experimental_rerun()
+                else:
+                    st.error(f"Failed to follow {search_username}")
         else:
-            st.error(f"Failed to follow {new_follow}")
+            st.write("User not found")
 
 def logout():
     st.session_state['username'] = None
@@ -200,11 +206,11 @@ else:
     st.sidebar.title(f"Logged in as {st.session_state['username']}")
     if st.sidebar.button("Logout"):
         logout()
-    page = st.sidebar.selectbox("Select page", ["Home", "Profile"])
+    page = st.sidebar.selectbox("Select page", ["Home", "Following"])
     if page == "Home":
         home()
-    elif page == "Profile":
-        profile()
+    elif page == "Following":
+        following()
 
 
 
