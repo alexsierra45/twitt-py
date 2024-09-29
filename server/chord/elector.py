@@ -1,11 +1,14 @@
 import logging
-from chord.timer import TimeRequest, Timer
+import threading
+from chord.timer import Timer
 from chord.node_reference import ChordNodeReference
 
 class Elector:
     def __init__(self, node, timer: Timer) -> None:
         self.node = node
-        self.leader: ChordNodeReference = node.leader
+        self.leader: ChordNodeReference = self.node.ref # Initial ring leader is itself
+        self.leader_lock = threading.RLock
+        
         self.timer = timer
 
     def ping_leader(self, id, time):
@@ -18,7 +21,7 @@ class Elector:
             return self.timer.time_counter
 
     def check_leader(self):
-        with self.node.leader_lock:
+        with self.leader_lock:
             if self.leader.id == self.id:
                 return
 
@@ -33,8 +36,63 @@ class Elector:
                     self.timer.time_counter = time_response
                     self.timer.node_timers[self.node.id] = time_response
             except Exception as e:
-                logging.error(f"Leader {self.leader.address} failed: {e}")
+                logging.error(f"Leader {self.leader.id} failed: {e}")
                 self.request_election()
 
     def request_election(self):
-        pass
+        with self.node.succ_lock:
+            succ: ChordNodeReference = self.node.succ
+
+        if (self.node.id == succ.id):
+            with self.leader_lock:
+                self.leader = self.node.ref
+            logging.info(f"Node {self.node.id} is now the leader")
+            return
+        
+        logging.info("Elections requested")
+        ok = succ.ping()
+        if not ok:
+            with self.leader_lock:
+                self.leader = self.node.ref
+            logging.error(f"Failed to connect to successor {succ.id}")
+            return
+        
+        try:
+            self.leader = succ.election(self.node.id, self.leader.ip, self.leader.port)
+            logging.info(f"New leader elected: {self.leader.id}")
+        except Exception as e:
+            with self.leader_lock:
+                self.leader = self.ref
+            logging.error(f"Election failed: {e}")
+
+    def election(self, first_id, leader_ip, leader_port):
+        leader = ChordNodeReference(leader_ip, leader_port)
+        first_id = first_id
+
+        if self.node.id > leader.id:
+            leader = self.node.ref
+
+        with self.node.succ_lock:
+            succ: ChordNodeReference = self.node.succ
+
+        if succ.id == self.node.id or succ.id == first_id:
+            with self.leader_lock:
+                self.leader = leader
+
+            return f'{leader.ip},{leader.port}'
+
+        ok = succ.ping()
+        if not ok:
+            logging.info('Failed to connect to successor')
+            return None
+
+        try:
+            leader = succ.election(first_id, leader.ip, leader.port)
+        except Exception as e:
+            logging.info(f"Election failed: {e}")
+            return None
+
+        with self.leader_lock:
+            self.leader = leader
+
+        return f'{leader.ip},{leader.port}'

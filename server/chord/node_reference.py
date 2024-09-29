@@ -80,6 +80,9 @@ class ChordNodeReference:
         response = self._send_data(PING_LEADER, f'{id},{time}').decode()
         return int(response)
 
+    def election(self, first_id: int, leader_ip: int, leader_port: int):
+        response = self._send_data(ELECTION, f'{first_id},{leader_ip},{leader_port}').decode().split(',')
+        return ChordNodeReference(response[1], response[2])
 
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'

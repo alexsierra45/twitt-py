@@ -28,15 +28,12 @@ class ChordNode:
         self.pred = None  # Initially no predecessor
         self.pred_lock = threading.RLock()
 
-        self.leader = self.ref # Initial ring leader is itself
-        self.leader_lock = threading.RLock
+        self.shutdown_event = threading.Event()
 
         self.finger = FingerTable(self, m) # Finger table
         self.storage = RAMStorage() # Dictionary to store key-value pairs
-        self.timer = Timer() # Node clock
+        self.timer = Timer(self) # Node clock
         self.elector = Elector(self, self.timer) # Leader regulator
-
-        self.shutdown_event = threading.Event()
 
         # Start background threads for stabilization, fixing fingers, and checking predecessor
         threading.Thread(target=self.stabilize, daemon=True).start()  # Start stabilize thread
@@ -58,7 +55,7 @@ class ChordNode:
 
     # Stabilize method to periodically verify and update the successor and predecessor
     def stabilize(self):
-        while self.shutdown_event.is_set():
+        while not self.shutdown_event.is_set():
             try:
                 with self.succ_lock:
                     if self.succ.id != self.id or (self.succ.id == self.id and self.succ.pred.id != self.id):
@@ -93,7 +90,7 @@ class ChordNode:
 
     # Check predecessor method to periodically verify if the predecessor is alive
     def check_predecessor(self):
-        while self.shutdown_event.is_set():
+        while not self.shutdown_event.is_set():
             try:
                 pred = self.pred
                 if not pred:
@@ -194,6 +191,9 @@ class ChordNode:
                 elif option == PING_LEADER:
                     id, time = int(data[1]), int(data[2] )
                     server_response = self.elector.ping_leader(id, time)
+                elif option == ELECTION:
+                    id, ip, port = data[1], data[2], data[3]
+                    server_response = self.elector.election(id, ip, port)
 
                 response = None
                 if data_resp:
