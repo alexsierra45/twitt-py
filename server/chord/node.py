@@ -11,70 +11,74 @@ from chord.finger_table import FingerTable
 from chord.discoverer import Discoverer
 from chord.timer import Timer
 from chord.elector import Elector
-
+from chord.dynamic_list import DynamicList
 
 # Class representing a Chord node
 class ChordNode:
-    def __init__(self, ip: str, port: int = 8001, m: int = 160):
+    def __init__(self, ip: str, port: int = 8001, m: int = 160, c: int = 3):
         self.id = getShaRepr(ip)
         self.ip = ip
         self.port = port
         self.ref = ChordNodeReference(self.ip, self.port)
 
-        self.succ = self.ref  # Initial successor is itself
+        self.successors = DynamicList[ChordNodeReference](capacity=2)
+        self.successors.set_index(0, self.ref)  # Initial successor is itself
+        # self.succ = self.ref  # Initial successor is itself
         self.succ_lock = threading.RLock() 
 
-        self.pred = None  # Initially no predecessor
+        self.predecessors = DynamicList[ChordNodeReference](capacity=2)
+        self.predecessors.set_index(0, None)  # Initially no predecessor
+        # self.pred = None  # Initially no predecessor
         self.pred_lock = threading.RLock()
 
         self.shutdown_event = threading.Event()
+
+        # Start background threads for stabilization, and checking predecessor
+        threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
+        threading.Thread(target=self.stabilize, daemon=True).start()  # Start stabilize thread
+        threading.Thread(target=self.check_predecessor, daemon=True).start()  # Start check predecessor thread
 
         self.finger = FingerTable(self, m) # Finger table
         self.storage = RAMStorage() # Dictionary to store key-value pairs
         self.timer = Timer(self) # Node clock
         self.elector = Elector(self, self.timer) # Leader regulator
-
         self.discoverer = Discoverer(self, self.succ_lock, self.pred_lock) # Broadcast discoverer
-
-        # Start background threads for stabilization, fixing fingers, and checking predecessor
-        threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
-        threading.Thread(target=self.stabilize, daemon=True).start()  # Start stabilize thread
-        threading.Thread(target=self.check_predecessor, daemon=True).start()  # Start check predecessor thread
 
     # Stabilize method to periodically verify and update the successor and predecessor
     def stabilize(self):
         while not self.shutdown_event.is_set():
             try:
                 with self.succ_lock:
-                    if self.succ.id != self.id or (self.succ.id == self.id and self.succ.pred.id != self.id):
+                    succ = self.successors.get_index(0)
+                    if succ.id != self.id or (succ.id == self.id and succ.pred.id != self.id):
                         logging.info('Stabilizing node')
                         
-                        ok = self.succ.ping()
+                        ok = succ.ping()
                         if ok:
-                            pred = self.succ.pred
+                            pred = succ.pred
                             if pred.id != self.id:
-                                if pred and inbetween(pred.id, self.id, self.succ.id):
-                                    self.succ = pred
-                                self.succ.notify(self.ref)
+                                if pred and inbetween(pred.id, self.id, succ.id):
+                                    self.successors.set_index(0, pred)
+                                self.successors.get_index(0).notify(self.ref)
                             logging.info('Node stabilized')
                         else:
-                            self.succ = self.ref
+                            self.successors.set_index(0, self.ref)
             except Exception as e:
                 logging.error(f"Error in stabilize: {e}")
 
-            logging.info(f"successor : {self.succ} predecessor {self.pred}")
+            succ = self.successors.get_index(0)
+            pred = self.predecessors.get_index(0)
+            logging.info(f"successor : {succ} predecessor {pred}")
             time.sleep(10)
 
     # Notify method to inform the node about another node
     def notify(self, node: 'ChordNodeReference'):
         if node.id == self.id:
             return
-        if not self.pred or inbetween(node.id, self.pred.id, self.id):
+        pred = self.predecessors.get_index(0)
+        if not pred or inbetween(node.id, pred.id, self.id):
             logging.info(f'Notify from {node.id}')
-            # if not self.pred and self.id == self.succ.id:
-            #     self.succ = node
-            #     self.succ.notify(self.ref)
-            self.pred = node
+            self.predecessors.set_index(0, node)
         else:
             logging.info(f'No update needed for node {node.id}')
 
@@ -82,15 +86,15 @@ class ChordNode:
     def check_predecessor(self):
         while True:
             try:
-                pred = self.pred
+                pred = self.predecessors.get_index(0)
                 if pred:
                     logging.info(f'Check predecessor {pred.id}')
                     ok = pred.ping()
                     if not ok:
                         logging.info(f'Predecessor {pred.id} has failed')
-                        self.pred = None
+                        self.predecessors.set_index(0, None)
             except Exception as e:
-                self.pred = None
+                self.predecessors.set_index(0, None)
             time.sleep(10)
 
     def set_key(self, key: str, value: str) -> bool:
@@ -121,6 +125,8 @@ class ChordNode:
 
     # Start server method to handle incoming requests
     def start_server(self):
+        logging.info('Starting main thread')
+
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((self.ip, self.port))
@@ -145,9 +151,11 @@ class ChordNode:
                     id = int(data[1])
                     data_resp = self.finger.find_pred(id)
                 elif option == GET_SUCCESSOR:
-                    data_resp = self.succ if self.succ else self.ref
+                    succ = self.successors.get_index(0)
+                    data_resp = succ
                 elif option == GET_PREDECESSOR:
-                    data_resp = self.pred if self.pred else self.ref
+                    pred = self.predecessors.get_index(0)
+                    data_resp = pred if pred else self.ref
                 elif option == NOTIFY:
                     ip, port = data[1], int(data[2])
                     self.notify(ChordNodeReference(ip, port))

@@ -54,7 +54,7 @@ class Elector:
 
     def request_election(self):
         with self.node.succ_lock:
-            succ: ChordNodeReference = self.node.succ
+            succ: ChordNodeReference = self.node.successors.get_index(0)
 
         if (self.node.id == succ.id):
             with self.leader_lock:
@@ -86,7 +86,7 @@ class Elector:
             leader = self.node.ref
 
         with self.node.succ_lock:
-            succ: ChordNodeReference = self.node.succ
+            succ: ChordNodeReference = self.node.successors.get_index(0)
 
         if succ.id == self.node.id or succ.id == first_id:
             with self.leader_lock:

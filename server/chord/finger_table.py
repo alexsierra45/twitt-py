@@ -22,7 +22,7 @@ class FingerTable:
         
         with self.node.succ_lock:
             if self.node.id == node.id:
-                return self.node.succ
+                return self.node.successors.get_index(0)
             
         return node.succ  # Return successor of that node
     
@@ -30,7 +30,8 @@ class FingerTable:
     def find_pred(self, id: int) -> 'ChordNodeReference':
         node = self.node
         first_time = True
-        while not inbetween(id, node.id, node.succ.id):
+        succ: ChordNodeReference = node.successors.get_index(0)
+        while not inbetween(id, node.id, succ.id):
             if first_time:
                 first_time = False
                 node = node.finger.closest_preceding_finger(id)

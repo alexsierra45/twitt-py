@@ -13,40 +13,42 @@ class Discoverer:
         self.node = node
         self.succ_lock = succ_lock
         self.pred_lock = pred_lock
-        self.times = 0
+        self.times = 3
         self.joined = False
         self.node_id = str(uuid.uuid4())  # Unique identifier for this node
 
-        threading.Thread(target=self.send_announcement, daemon=True).start()  # Start multicast discover sender
-        threading.Thread(target=self.listen_for_announcements, daemon=True).start()  # Start multicast discover listener
+        threading.Thread(target=self.send_announcement, daemon=True).start()  # Start broadcast discover sender
+        # threading.Thread(target=self.listen_for_announcements, daemon=True).start()  # Start broadcast discover listener
 
     def send_announcement(self):
         # Crear un socket UDP para el envío de broadcast
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Habilitar el modo de broadcast
             
-            while True:
-                if self.node.succ.id == self.node.id:
-                    self.times = 5
-                    self.joined = False
+            # while True:
+            #     succ: ChordNodeReference = self.node.successors.get_index(0)
+            #     if succ.id == self.node.id:
+            #         self.times = 5
+            #         self.joined = False
 
-                    logging.info('Looking for a chord ring via broadcast!!!')
-                    while self.times > 0 and not self.joined:
-                        message = f"NODE:{self.node.ip}:{self.node_id}"
-                        s.sendto(message.encode(), ('<broadcast>', BROADCAST_PORT))  # Enviar el mensaje a la dirección de broadcast
-                        time.sleep(5)
-                        self.times -= 1
-                    if self.joined:
-                        logging.info('Chord ring discovered :)')
-                    else:
-                        logging.info('No chord ring was discovered :(')
-                        self.stop_discovering()
+            logging.info('Looking for a chord ring via broadcast!!!')
+            while self.times > 0 and not self.joined:
+                message = f"NODE:{self.node.ip}:{self.node_id}"
+                s.sendto(message.encode(), ('<broadcast>', BROADCAST_PORT))  # Enviar el mensaje a la dirección de broadcast
+                time.sleep(5)
+                self.times -= 1
+            if self.joined:
+                logging.info('Chord ring discovered :)')
+            else:
+                logging.info('No chord ring was discovered :(')
+                self.stop_discovering()
 
-                time.sleep(60)
+                # time.sleep(60)
 
     def stop_discovering(self):
         self.times = 0
         self.joined = True
+        threading.Thread(target=self.listen_for_announcements, daemon=True).start()  # Start broadcast discover listener
 
     def listen_for_announcements(self):
         # Crear un socket UDP para escuchar en el puerto específico
@@ -73,9 +75,10 @@ class Discoverer:
     def join(self, node: 'ChordNodeReference'):
         try:
             with self.succ_lock and self.pred_lock:
-                self.node.pred = None
-                self.node.succ = node.find_successor(self.node.id)
-                self.node.succ.notify(self.node.ref)
+                self.node.predecessors.set_index(0, None)
+                self.node.successors.set_index(0, node.find_successor(self.node.id))
+                succ: ChordNodeReference = self.node.successors.get_index(0)
+                succ.notify(self.node.ref)
                 logging.info(f'Joining node {node.ip}')
                 self.joined = True
                 return TRUE
