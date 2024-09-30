@@ -1,5 +1,6 @@
 import logging
 import threading
+import time
 from chord.timer import Timer
 from chord.node_reference import ChordNodeReference
 
@@ -7,9 +8,12 @@ class Elector:
     def __init__(self, node, timer: Timer) -> None:
         self.node = node
         self.leader: ChordNodeReference = self.node.ref # Initial ring leader is itself
-        self.leader_lock = threading.RLock
+        self.leader_lock = threading.RLock()
         
         self.timer = timer
+
+        threading.Thread(target=self.check_leader, daemon=True).start()  # Start check leader thread
+        threading.Thread(target=self.election_thread, daemon=True).start()  # Start election thread
 
     def ping_leader(self, id, time):
         with self.timer.time_lock:
@@ -21,23 +25,32 @@ class Elector:
             return self.timer.time_counter
 
     def check_leader(self):
-        with self.leader_lock:
-            if self.leader.id == self.id:
-                return
+        while not self.node.shutdown_event.is_set():
+            with self.leader_lock:
+                if self.leader.id != self.node.id:
+                    logging.info(f"Check leader: {self.leader.id}")
 
-            logging.info(f"Check leader: {self.leader.id}")
+                    with self.timer.time_lock:
+                        current_time = self.timer.time_counter
 
-            with self.timer.time_lock:
-                current_time = self.timer.time_counter
+                    try:
+                        time_response = self.leader.ping_leader(current_time)
+                        with self.timer.time_lock:
+                            self.timer.time_counter = time_response
+                            self.timer.node_timers[self.node.id] = time_response
+                    except Exception as e:
+                        logging.error(f"Leader {self.leader.id} failed: {e}")
+                        self.request_election()
+            time.sleep(10)
 
-            try:
-                time_response = self.leader.ping_leader(current_time)
-                with self.timer.time_lock:
-                    self.timer.time_counter = time_response
-                    self.timer.node_timers[self.node.id] = time_response
-            except Exception as e:
-                logging.error(f"Leader {self.leader.id} failed: {e}")
+    def election_thread(self):
+        logging.info("Election requested thread started")
+        while not self.node.shutdown_event.is_set():
+            with self.leader_lock:
+                leader_id = self.leader.id
+            if leader_id == self.node.id:
                 self.request_election()
+            time.sleep(60)
 
     def request_election(self):
         with self.node.succ_lock:
