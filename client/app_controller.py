@@ -122,7 +122,7 @@ async def following():
                         else:
                             st.error(f"Failed to follow {search_username}")
                     
-                posts = get_user_posts(search_username, token)
+                posts = await get_user_posts(search_username, token)
 
                 # Mostrar las publicaciones debajo del usuario
                 if posts:
