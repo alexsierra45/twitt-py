@@ -53,6 +53,11 @@ class PostService(PostServiceServicer):
         user_id = request.user_id
         # if not self._check_permission(context, user_id):
         #     context.abort(grpc.StatusCode.PERMISSION_DENIED, "Permission denied")
+        posts, err = self.post_persistency.load_posts_list(user_id)
+
+        for post in posts:
+            if post.original_post_id == request.original_post_id:
+                context.abort(grpc.StatusCode.INVALID_ARGUMENT, "User already reposted this post")
 
         original_post, err = self.post_persistency.load_post(request.original_post_id)
         if err:
