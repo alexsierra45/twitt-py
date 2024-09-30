@@ -142,9 +142,13 @@ def home():
         for post in posts:
             col1, col2 = st.columns([4, 1])
             with col1:
-                st.write(f"**{post.user_id}**: {post.content}")
+                if post.original_post_id:
+                    st.write(f"**{post.user_id}**: {post.content} (Reposted)")
+                else:
+                    st.write(f"**{post.user_id}**: {post.content}")
             with col2:
                 if st.button("Delete", key=f"delete_{post.post_id}"):
+                    print("Deleting")
                     if delete_post(post.post_id, token):
                         st.success("Post deleted successfully")
                         st.experimental_rerun()
@@ -173,36 +177,35 @@ def following():
     
     if following_users:
         for user in following_users:
-            col1, col2, col3 = st.columns([3, 1, 1])  # Create three columns
+            col1, col2 = st.columns([3, 1])  # Dos columnas, una para el nombre y otra para el botón de unfollow
             with col1:
-                st.write(user)  # Display the username
+                st.write(user)  # Mostrar el nombre del usuario
             with col2:
-                if st.button(f"Unfollow", key=f"unfollow_{user}"):  # Unfollow button
+                if st.button(f"Unfollow", key=f"unfollow_{user}"):  # Botón de Unfollow
                     if unfollow_user(current_user, user, token):
                         st.success(f"Unfollowed {user} successfully")
-                        st.experimental_rerun()  # Refresh the page to update the list
+                        st.experimental_rerun()  # Refrescar la página para actualizar la lista
                     else:
                         st.error(f"Failed to unfollow {user}")
-            with col3:
-                if st.button(f"View Posts", key=f"view_posts_{user}"):
-                    posts = get_user_posts(user, token) 
-                    if posts:
-                        for post in posts:
-                            print(post.post_id)
-                            st.write(f"**{post.user_id}**: {post.content}")
-                            if st.button(f"Repost", key=f"repost_{post.post_id}"):
-                                print("Repost button clicked")  # Debug statement
-                                try:
-                                    repost_success = repost(current_user, post.post_id, token)  # Assuming this function exists
-                                    if repost_success:
-                                        st.success("Post reposted successfully!")
-                                    else:
-                                        st.error("Failed to repost the post.")
-                                except Exception as e:
-                                    print(f"Error during reposting: {e}")  # Print error message
-                                    st.error("An error occurred while trying to repost.")
-                    else:
-                        st.write(f"No posts available for {user}.")
+
+            # Obtener las publicaciones del usuario
+            posts = get_user_posts(user, token)
+
+            # Mostrar las publicaciones debajo del usuario
+            if posts:
+                st.subheader(f"Posts by {user}:")
+                for post in posts:
+                    st.write(f"**{post.user_id}**: {post.content}")
+                    if st.button(f"Repost", key=f"repost_{post.post_id}"):
+                        if repost(current_user, post.post_id, token):
+                            st.success("Post reposted successfully")
+                            st.experimental_rerun()
+                        else:
+                            st.error("Failed to repost post")
+            else:
+                st.write(f"No posts available for {user}.")
+
+
     else:
         st.write("You are not following anyone.")
 
@@ -211,34 +214,37 @@ def following():
 
     if search_username:
         if exists_user(search_username, token):  
-            col1, col2 = st.columns([3, 1])  # Create two columns for search results
-            with col1:
-                st.write(f"User found: {search_username}")
-            with col2:
-                if st.button(f"Follow {search_username}"):
-                    if follow_user(current_user, search_username, token):
-                        st.success(f"Followed {search_username} successfully")
-                        st.experimental_rerun()
-                    else:
-                        st.error(f"Failed to follow {search_username}")
-                
-            # Add a button to view posts of the searched user
-            if st.button(f"View Posts for {search_username}", key=f"view_posts_search_{search_username}"):
-                posts = get_user_posts(search_username, token)  # Assuming this function exists
+            if search_username in following_users:
+                st.write(f"You are already following {search_username}")
+            else:    
+                col1, col2 = st.columns([3, 1])  # Create two columns for search results
+                with col1:
+                    st.write(f"User found: {search_username}")
+                with col2:
+                    if st.button(f"Follow {search_username}"):
+                        if follow_user(current_user, search_username, token):
+                            st.success(f"Followed {search_username} successfully")
+                            st.experimental_rerun()
+                        else:
+                            st.error(f"Failed to follow {search_username}")
+                    
+                posts = get_user_posts(search_username, token)
+
+                # Mostrar las publicaciones debajo del usuario
                 if posts:
+                    st.subheader(f"Posts by {search_username}:")
                     for post in posts:
                         st.write(f"**{post.user_id}**: {post.content}")
-                        if st.button(f"Repost {post.post_id}", key=f"repost_search_{post.post_id}"):
-                            repost_success = repost(current_user, post.post_id, token)  # Assuming this function exists
-                            if repost_success:
-                                st.success("Post reposted successfully!")
+                        if st.button(f"Repost", key=f"repost_{post.post_id}"):
+                            if repost(current_user, post.post_id, token):
+                                st.success("Post reposted successfully")
+                                st.experimental_rerun()
                             else:
-                                st.error("Failed to repost the post.")
+                                st.error("Failed to repost post")
                 else:
-                    st.write(f"No posts available for {search_username}.")
-        else:
+                    st.write(f"No posts available for {user}.") 
+        else:              
             st.write("User not found")
-
 
 def logout():
     st.session_state['username'] = None

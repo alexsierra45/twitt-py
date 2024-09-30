@@ -59,13 +59,7 @@ class PostService(PostServiceServicer):
             context.abort(grpc.StatusCode.NOT_FOUND, "Original post not found")
 
         post_id = str(time.time_ns())
-        post = {
-            "post_id": post_id,
-            "user_id": user_id,
-            "content": original_post["content"],
-            "timestamp": int(time.time()),
-            "original_post_id": request.original_post_id
-        }
+        post = Post(post_id = post_id, user_id = user_id, content = original_post.content, timestamp = int(time.time()), original_post_id = original_post.post_id)
 
         err = self.post_persistency.save_post(post)
         if err:
