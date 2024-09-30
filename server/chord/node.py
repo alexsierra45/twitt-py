@@ -187,7 +187,7 @@ class ChordNode:
             if index == succs_len - 1:
                 self.successors.set_index(index + 1, succ)
                 # replicate all data
-                # n.replicateAllData(sucRes)
+                # self.replicate_all_dat(succ)
                 return (index + 1) % len(self.successors)
             
             next_succ = self.successors.get_index(index + 1)
@@ -201,7 +201,7 @@ class ChordNode:
 
                 if find:
                     # replicate all data
-                    # n.replicateAllData(sucRes)
+                    # self.replicate_all_dat(succ)
                     pass
 
             return (index + 1) % len(self.successors)
