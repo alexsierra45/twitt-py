@@ -3,6 +3,7 @@ import socket
 import traceback
 from chord.constants import *
 from chord.utils import getShaRepr
+from config import PORT
 
 
 # Class to reference a Chord node
@@ -89,9 +90,13 @@ class ChordNodeReference:
         response = self._send_data(PING_LEADER, f'{id},{time}').decode()
         return int(response)
 
-    def election(self, first_id: int, leader_ip: int, leader_port: int):
+    def election(self, first_id: int, leader_ip: int, leader_port: int) -> 'ChordNodeReference':
         response = self._send_data(ELECTION, f'{first_id},{leader_ip},{leader_port}').decode().split(',')
         return ChordNodeReference(response[0], response[1])
+    
+    def get_successor_and_notify(self, index, ip) -> 'ChordNodeReference':
+        response = self._send_data(GET_SUCCESSOR_AND_NOTIFY, f'{index},{ip}').decode().split(',')
+        return ChordNodeReference(response[1], self.port)
 
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'

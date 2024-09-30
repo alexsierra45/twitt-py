@@ -20,14 +20,15 @@ class ChordNode:
         self.ip = ip
         self.port = port
         self.ref = ChordNodeReference(self.ip, self.port)
+        self.c = c
 
-        self.successors = DynamicList[ChordNodeReference](capacity=2)
+        self.successors = DynamicList[ChordNodeReference](c)
         self.successors.set_index(0, self.ref)  # Initial successor is itself
         # self.succ = self.ref  # Initial successor is itself
         self.succ_lock = threading.RLock() 
 
-        self.predecessors = DynamicList[ChordNodeReference](capacity=2)
-        self.predecessors.set_index(0, None)  # Initially no predecessor
+        self.predecessors = DynamicList[ChordNodeReference](c)
+        self.predecessors.set_index(0, self.ref)  # Initially no predecessor
         # self.pred = None  # Initially no predecessor
         self.pred_lock = threading.RLock()
 
@@ -36,12 +37,14 @@ class ChordNode:
         # Start background threads for stabilization, and checking predecessor
         threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
         threading.Thread(target=self.stabilize, daemon=True).start()  # Start stabilize thread
+        threading.Thread(target=self.fix_successors, daemon=True).start()  # Start fixing successors
+        threading.Thread(target=self.check_successor, daemon=True).start()  # Start check predecessor thread
         threading.Thread(target=self.check_predecessor, daemon=True).start()  # Start check predecessor thread
 
         self.finger = FingerTable(self, m) # Finger table
         self.storage = RAMStorage() # Dictionary to store key-value pairs
-        self.timer = Timer(self) # Node clock
-        self.elector = Elector(self, self.timer) # Leader regulator
+        # self.timer = Timer(self) # Node clock
+        # self.elector = Elector(self, self.timer) # Leader regulator
         self.discoverer = Discoverer(self, self.succ_lock, self.pred_lock) # Broadcast discoverer
 
     # Stabilize method to periodically verify and update the successor and predecessor
@@ -82,20 +85,133 @@ class ChordNode:
         else:
             logging.info(f'No update needed for node {node.id}')
 
+    # Check successor method to periodically verify if the successor is alive
+    def check_successor(self):
+        while True:
+            try:
+                with self.succ_lock:
+                    succ = self.successors.get_index(0)
+                if succ and succ.id != self.id:
+                    logging.info(f'Check successor {succ.id}')
+                    ok = succ.ping()
+                    if not ok:
+                        logging.info(f'Successor {succ.id} has failed')
+                        with self.succ_lock:
+                            succs_len = len(self.successors)
+                            if succs_len == 1:
+                                self.successors.remove_index(0)
+                                self.successors.set_index(0, self.ref)
+                            else:
+                                self.successors.remove_index(0)
+
+            except Exception as e:
+                self.predecessors.set_index(0, self.ref)
+            time.sleep(10)
+
     # Check predecessor method to periodically verify if the predecessor is alive
     def check_predecessor(self):
         while True:
             try:
-                pred = self.predecessors.get_index(0)
-                if pred:
+                with self.pred_lock:
+                    pred = self.predecessors.get_index(0)
+                if pred and pred.id != self.id:
                     logging.info(f'Check predecessor {pred.id}')
                     ok = pred.ping()
                     if not ok:
                         logging.info(f'Predecessor {pred.id} has failed')
-                        self.predecessors.set_index(0, None)
+                        with self.pred_lock:
+                            preds_len = len(self.predecessors)
+                            if preds_len == 1:
+                                self.predecessors.remove_index(0)
+                                self.predecessors.set_index(0, self.ref)
+                            else:
+                                self.predecessors.remove_index(0)
+
             except Exception as e:
-                self.predecessors.set_index(0, None)
+                self.predecessors.set_index(0, self.ref)
             time.sleep(10)
+
+    def get_successor_and_notify(self, index, ip):
+        node = ChordNodeReference(ip, self.port)
+        print(node)
+
+        with self.succ_lock:
+            succ = self.successors.get_index(0)
+
+        with self.pred_lock:
+            if len(self.predecessors) <= index or self.predecessors.get_index(index).id != node.id:
+                if len(self.predecessors) < index:
+                    index = len(self.predecessors)
+                self.predecessors.set_index(index, node)
+        print(succ)
+        return succ
+    
+    def fix_successors(self):
+        logging.info('Check fix successors thread started')
+
+        next = 0
+        while not self.shutdown_event.is_set():
+            next = self.fix_successor(next)
+            time.sleep(10)
+
+    def fix_successor(self, index: int) -> int:
+        logging.info(f'Fixing successor {index}')
+        succ: ChordNodeReference
+
+        with self.succ_lock:
+            succs_len = len(self.successors)
+            if succs_len == 0:
+                return 0
+
+            if index < succs_len:
+                succ = self.successors.get_index(index)
+            last = self.successors.get_index(succs_len - 1)
+
+        if succ is None:
+            return 0
+        
+        if succ.id == self.id and succs_len == 1:
+            return 0
+        
+        if succs_len != 1 and last.id == self.id:
+            with self.succ_lock:
+                succs_len -= 1
+                self.successors.remove_index(succs_len)
+
+        try:
+            print(succ)
+            succ = succ.get_successor_and_notify(index, self.ip)
+            if succ.id == self.id or index == self.c - 1:
+                return 0
+            
+            if index == succs_len - 1:
+                self.successors.set_index(index + 1, succ)
+                # replicate all data
+                # n.replicateAllData(sucRes)
+                return (index + 1) % len(self.successors)
+            
+            next_succ = self.successors.get_index(index + 1)
+            if next_succ.id != succ.id:
+                self.successors.set_index(index + 1, succ)
+
+                find = False
+                for i in range(len(self.successors)):
+                    if succ.id == self.successors.get_index(index).id:
+                        find = True
+
+                if find:
+                    # replicate all data
+                    # n.replicateAllData(sucRes)
+                    pass
+
+            return (index + 1) % len(self.successors)
+        except Exception as e:
+            logging.error(f'Error fixing succesor {index}: {e}')
+            with self.succ_lock:
+                self.successors.remove_index(index)
+                if len(self.successors) == 0:
+                    self.successors.set_index(0, self.ref)
+                return index % len(self.successors)
 
     def set_key(self, key: str, value: str) -> bool:
         key_hash = getShaRepr(key)
@@ -184,6 +300,9 @@ class ChordNode:
                 elif option == ELECTION:
                     id, ip, port = int(data[1]), data[2], int(data[3])
                     server_response = self.elector.election(id, ip, port)
+                elif option == GET_SUCCESSOR_AND_NOTIFY:
+                    index, ip = int(data[1]), data[2]
+                    data_resp = self.get_successor_and_notify(index, ip)
 
                 response = None
                 if data_resp:

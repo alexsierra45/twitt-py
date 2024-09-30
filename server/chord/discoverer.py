@@ -75,7 +75,8 @@ class Discoverer:
     def join(self, node: 'ChordNodeReference'):
         try:
             with self.succ_lock and self.pred_lock:
-                self.node.predecessors.set_index(0, None)
+                self.node.predecessors.set_index(0, self.node.ref)
+                self.node.successors.clear()
                 self.node.successors.set_index(0, node.find_successor(self.node.id))
                 succ: ChordNodeReference = self.node.successors.get_index(0)
                 succ.notify(self.node.ref)
