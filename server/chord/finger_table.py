@@ -48,7 +48,7 @@ class FingerTable:
     
     # Fix fingers method to periodically update the finger table
     def fix_fingers(self):
-        while True:
+        while not self.node.shutdown_event.is_set():
             logging.info('Fix fingers thread started')
             try:
                 self.next += 1

@@ -9,6 +9,8 @@ from chord.storage import RAMStorage
 from chord.utils import getShaRepr, inbetween
 from chord.finger_table import FingerTable
 from chord.discoverer import Discoverer
+from chord.timer import Timer
+from chord.elector import Elector
 
 
 # Class representing a Chord node
@@ -25,8 +27,12 @@ class ChordNode:
         self.pred = None  # Initially no predecessor
         self.pred_lock = threading.RLock()
 
-        self.finger = FingerTable(self, m)
-        self.storage = RAMStorage()  # Dictionary to store key-value pairs
+        self.shutdown_event = threading.Event()
+
+        self.finger = FingerTable(self, m) # Finger table
+        self.storage = RAMStorage() # Dictionary to store key-value pairs
+        self.timer = Timer(self) # Node clock
+        self.elector = Elector(self, self.timer) # Leader regulator
 
         self.discoverer = Discoverer(self, self.succ_lock, self.pred_lock) # Broadcast discoverer
 
@@ -37,7 +43,7 @@ class ChordNode:
 
     # Stabilize method to periodically verify and update the successor and predecessor
     def stabilize(self):
-        while True:
+        while not self.shutdown_event.is_set():
             try:
                 with self.succ_lock:
                     if self.succ.id != self.id or (self.succ.id == self.id and self.succ.pred.id != self.id):
@@ -74,7 +80,7 @@ class ChordNode:
 
     # Check predecessor method to periodically verify if the predecessor is alive
     def check_predecessor(self):
-        while True:
+        while not self.shutdown_event.is_set():
             try:
                 pred = self.pred
                 if pred:
@@ -143,9 +149,8 @@ class ChordNode:
                 elif option == GET_PREDECESSOR:
                     data_resp = self.pred if self.pred else self.ref
                 elif option == NOTIFY:
-                    id = int(data[1])
-                    ip = data[2]
-                    self.notify(ChordNodeReference(ip, self.port))
+                    ip, port = int(data[1]), int(data[2])
+                    self.notify(ChordNodeReference(ip, port))
                 elif option == CHECK_PREDECESSOR:
                     pass
                 elif option == CLOSEST_PRECEDING_FINGER:
@@ -165,6 +170,12 @@ class ChordNode:
                     id = int(data[1])
                     ip = data[2]
                     server_response = self.discoverer.join(ChordNodeReference(ip, self.port))
+                elif option == PING_LEADER:
+                    id, time = int(data[1]), int(data[2] )
+                    server_response = self.elector.ping_leader(id, time)
+                elif option == ELECTION:
+                    id, ip, port = data[1], data[2], data[3]
+                    server_response = self.elector.election(id, ip, port)
 
                 response = None
                 if data_resp:

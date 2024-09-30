@@ -46,7 +46,7 @@ class ChordNodeReference:
 
     # Method to notify the current node about another node
     def notify(self, node: 'ChordNodeReference'):
-        self._send_data(NOTIFY, f'{node.id},{node.ip}')
+        self._send_data(NOTIFY, f'{node.ip},{node.port}')
 
     # Method to check if the predecessor is alive
     def check_predecessor(self):
@@ -82,6 +82,14 @@ class ChordNodeReference:
     def join(self, node: 'ChordNodeReference') -> bool:
         response = self._send_data(JOIN, f'{node.id},{node.ip}').decode()
         return False if response == '' else int(response) == TRUE
+    
+    def ping_leader(self, id: int, time: int):
+        response = self._send_data(PING_LEADER, f'{id},{time}').decode()
+        return int(response)
+
+    def election(self, first_id: int, leader_ip: int, leader_port: int):
+        response = self._send_data(ELECTION, f'{first_id},{leader_ip},{leader_port}').decode().split(',')
+        return ChordNodeReference(response[1], response[2])
 
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'
