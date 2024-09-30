@@ -11,7 +11,7 @@ class Timer:
         now = int(time.time())
         
         self.time_counter = now
-        self.node_timers: Dict[str, int] = defaultdict(int)
+        self.node_timers: Dict[int, int] = defaultdict(int)
         
         self.node_timers[self.node.id] = now
 

@@ -15,7 +15,7 @@ class Elector:
         threading.Thread(target=self.check_leader, daemon=True).start()  # Start check leader thread
         threading.Thread(target=self.election_thread, daemon=True).start()  # Start election thread
 
-    def ping_leader(self, id, time):
+    def ping_leader(self, id: int, time: int):
         with self.timer.time_lock:
 
             self.timer.node_timers[id] = time
@@ -34,7 +34,7 @@ class Elector:
                         current_time = self.timer.time_counter
 
                     try:
-                        time_response = self.leader.ping_leader(current_time)
+                        time_response = self.leader.ping_leader(self.node.id, current_time)
                         with self.timer.time_lock:
                             self.timer.time_counter = time_response
                             self.timer.node_timers[self.node.id] = time_response
@@ -71,11 +71,11 @@ class Elector:
             return
         
         try:
-            self.leader = succ.election(self.node.id, self.leader.ip, self.leader.port)
+            self.leader = succ.election(self.node.id, self.node.ip, self.node.port)
             logging.info(f"New leader elected: {self.leader.id}")
         except Exception as e:
             with self.leader_lock:
-                self.leader = self.ref
+                self.leader = self.node.ref
             logging.error(f"Election failed: {e}")
 
     def election(self, first_id, leader_ip, leader_port):

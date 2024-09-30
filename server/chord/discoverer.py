@@ -13,7 +13,7 @@ class Discoverer:
         self.node = node
         self.succ_lock = succ_lock
         self.pred_lock = pred_lock
-        self.times = 5
+        self.times = 0
         self.joined = False
         self.node_id = str(uuid.uuid4())  # Unique identifier for this node
 
@@ -25,18 +25,24 @@ class Discoverer:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Habilitar el modo de broadcast
             
-            logging.info('Looking for a chord ring via broadcast!!!')
-            while self.times > 0 and not self.joined:
-                message = f"NODE:{self.node.ip}:{self.node_id}"
-                print(message)
-                s.sendto(message.encode(), ('<broadcast>', BROADCAST_PORT))  # Enviar el mensaje a la dirección de broadcast
-                time.sleep(5)
-                self.times -= 1
-            if self.joined:
-                logging.info('Chord ring discovered :)')
-            else:
-                logging.info('No chord ring was discovered :(')
-                self.stop_discovering()
+            while True:
+                if self.node.succ.id == self.node.id:
+                    self.times = 5
+                    self.joined = False
+
+                    logging.info('Looking for a chord ring via broadcast!!!')
+                    while self.times > 0 and not self.joined:
+                        message = f"NODE:{self.node.ip}:{self.node_id}"
+                        s.sendto(message.encode(), ('<broadcast>', BROADCAST_PORT))  # Enviar el mensaje a la dirección de broadcast
+                        time.sleep(5)
+                        self.times -= 1
+                    if self.joined:
+                        logging.info('Chord ring discovered :)')
+                    else:
+                        logging.info('No chord ring was discovered :(')
+                        self.stop_discovering()
+
+                time.sleep(60)
 
     def stop_discovering(self):
         self.times = 0
@@ -71,6 +77,7 @@ class Discoverer:
                 self.node.succ = node.find_successor(self.node.id)
                 self.node.succ.notify(self.node.ref)
                 logging.info(f'Joining node {node.ip}')
+                self.joined = True
                 return TRUE
         except Exception as e:
             logging.error(f'Error joining to chord ring: {e}')

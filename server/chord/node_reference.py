@@ -1,5 +1,6 @@
 import logging
 import socket
+import traceback
 from chord.constants import *
 from chord.utils import getShaRepr
 
@@ -15,11 +16,12 @@ class ChordNodeReference:
     def _send_data(self, op: int, data: str = None) -> bytes:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.connect((self.ip, self.port))
+                s.connect((self.ip, int(self.port)))
                 s.sendall(f'{op},{data}'.encode('utf-8'))
                 return s.recv(1024)
         except Exception as e:
-            logging.error(f"Error sending data: {e}, operation: {op}")
+            logging.error(f"Error sending data: {e}, operation: {op}, data: {data}")
+            traceback.print_exc()
             return b''
 
     # Method to find the successor of a given id
@@ -72,7 +74,7 @@ class ChordNodeReference:
         response = self._send_data(DELETE_KEY, key).decode()
         return False if response == '' else int(response) == TRUE
     
-    def ping(self):
+    def ping(self) -> bool:
         response = self._send_data(PING).decode()
         return response == ALIVE
     
@@ -89,7 +91,7 @@ class ChordNodeReference:
 
     def election(self, first_id: int, leader_ip: int, leader_port: int):
         response = self._send_data(ELECTION, f'{first_id},{leader_ip},{leader_port}').decode().split(',')
-        return ChordNodeReference(response[1], response[2])
+        return ChordNodeReference(response[0], response[1])
 
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'
