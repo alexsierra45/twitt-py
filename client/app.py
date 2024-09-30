@@ -101,7 +101,7 @@
 
 import asyncio
 import streamlit as st
-from grpc_client import delete_post, sign_up, login, create_post, get_user_posts, follow_user, unfollow_user, get_following
+from grpc_client import delete_post, exists_user, repost, sign_up, login, create_post, get_user_posts, follow_user, unfollow_user, get_following
 
 # Initialize session state
 if 'username' not in st.session_state:
@@ -162,17 +162,47 @@ def home():
         else:
             st.error("Failed to create post")
 
-
 def following():
     token = st.session_state['token']
+    current_user =  st.session_state['username']
     st.title("Following Page")
-    st.subheader(f"Username: {st.session_state['username']}")
+    st.subheader(f"Username: {current_user}")
 
     st.subheader("Following these users")
-    following = get_following(st.session_state['username'], token)
-    if following:
-        for user in following:
-            st.write(user)
+    following_users = get_following(current_user, token)
+    
+    if following_users:
+        for user in following_users:
+            col1, col2, col3 = st.columns([3, 1, 1])  # Create three columns
+            with col1:
+                st.write(user)  # Display the username
+            with col2:
+                if st.button(f"Unfollow", key=f"unfollow_{user}"):  # Unfollow button
+                    if unfollow_user(current_user, user, token):
+                        st.success(f"Unfollowed {user} successfully")
+                        st.experimental_rerun()  # Refresh the page to update the list
+                    else:
+                        st.error(f"Failed to unfollow {user}")
+            with col3:
+                if st.button(f"View Posts", key=f"view_posts_{user}"):
+                    posts = get_user_posts(user, token) 
+                    if posts:
+                        for post in posts:
+                            print(post.post_id)
+                            st.write(f"**{post.user_id}**: {post.content}")
+                            if st.button(f"Repost", key=f"repost_{post.post_id}"):
+                                print("Repost button clicked")  # Debug statement
+                                try:
+                                    repost_success = repost(current_user, post.post_id, token)  # Assuming this function exists
+                                    if repost_success:
+                                        st.success("Post reposted successfully!")
+                                    else:
+                                        st.error("Failed to repost the post.")
+                                except Exception as e:
+                                    print(f"Error during reposting: {e}")  # Print error message
+                                    st.error("An error occurred while trying to repost.")
+                    else:
+                        st.write(f"No posts available for {user}.")
     else:
         st.write("You are not following anyone.")
 
@@ -180,17 +210,35 @@ def following():
     search_username = st.text_input("Search for a user by username")
 
     if search_username:
-        # user_exists = get_user_by_username(search_username)  # Esta función debe devolver el usuario si existe
-        if True:
-            st.write(f"User found: {search_username}")
-            if st.button(f"Follow {search_username}"):
-                if follow_user(st.session_state['username'], search_username, token):
-                    st.success(f"Followed {search_username} successfully")
-                    st.experimental_rerun()
+        if exists_user(search_username, token):  
+            col1, col2 = st.columns([3, 1])  # Create two columns for search results
+            with col1:
+                st.write(f"User found: {search_username}")
+            with col2:
+                if st.button(f"Follow {search_username}"):
+                    if follow_user(current_user, search_username, token):
+                        st.success(f"Followed {search_username} successfully")
+                        st.experimental_rerun()
+                    else:
+                        st.error(f"Failed to follow {search_username}")
+                
+            # Add a button to view posts of the searched user
+            if st.button(f"View Posts for {search_username}", key=f"view_posts_search_{search_username}"):
+                posts = get_user_posts(search_username, token)  # Assuming this function exists
+                if posts:
+                    for post in posts:
+                        st.write(f"**{post.user_id}**: {post.content}")
+                        if st.button(f"Repost {post.post_id}", key=f"repost_search_{post.post_id}"):
+                            repost_success = repost(current_user, post.post_id, token)  # Assuming this function exists
+                            if repost_success:
+                                st.success("Post reposted successfully!")
+                            else:
+                                st.error("Failed to repost the post.")
                 else:
-                    st.error(f"Failed to follow {search_username}")
+                    st.write(f"No posts available for {search_username}.")
         else:
             st.write("User not found")
+
 
 def logout():
     st.session_state['username'] = None

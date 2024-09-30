@@ -49,12 +49,15 @@ class FollowsPersitency:
         path = os.path.join("User", username.lower(), "Follow")
         user_follows, err = self.load_following_list(username)
 
-        if err:
-            return False, err
+        list = []
 
-        if other_username in user_follows.following_user_ids:
-            user_follows.following_user_ids.remove(other_username)
-            err = save(self.node, user_follows, path)
+
+        if not err:
+            list = user_follows
+
+        if other_username in list:
+            list.remove(other_username)
+            err = save(self.node, UserFollows(following_user_ids = list), path)
 
             if err:
                 return False, grpc.StatusCode.INTERNAL("Failed to save following list: {}".format(err))

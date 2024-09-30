@@ -120,6 +120,7 @@ def repost(user_id, original_post_id, token):
     post_stub = posts_service_pb2_grpc.PostServiceStub(post_channel)
     request = posts_service_pb2.RepostRequest(user_id=user_id, original_post_id=original_post_id)
     try:
+        print("holaaaaa")
         response = post_stub.Repost(request)
         print(response)
         return True
@@ -177,11 +178,11 @@ def get_following(user_id, token):
 
 def exists_user(user_id, token):
     user_channel = get_authenticated_channel('localhost:50001',token)
-    user_stub = users_pb2_grpc.FollowServiceStub(user_channel)
+    user_stub = users_pb2_grpc.UserServiceStub(user_channel)
     request = users_pb2.GetUserRequest(username=user_id)
     try:
         response = user_stub.GetUser(request)
-        return response.following_usernames
+        if response: return True
     except grpc.RpcError as error:
         logger.error(f"An error occurred fetching the following list: {error.code()}: {error.details()}")
         return None
