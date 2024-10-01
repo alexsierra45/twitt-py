@@ -13,8 +13,6 @@ class FingerTable:
         self.next = 0  # Finger table index to fix next
         self.finger_lock = threading.RLock() 
 
-        threading.Thread(target=self.fix_fingers, daemon=True).start()  # Start fix fingers thread
-
     # Method to find the successor of a given id
     def find_succ(self, id: int) -> 'ChordNodeReference':
         logging.info(f'Find successor for {id}')
@@ -49,8 +47,8 @@ class FingerTable:
     
     # Fix fingers method to periodically update the finger table
     def fix_fingers(self):
+        logging.info('Fix fingers thread started')
         while not self.node.shutdown_event.is_set():
-            logging.info('Fix fingers thread started')
             try:
                 self.next += 1
                 if self.next >= self.m:

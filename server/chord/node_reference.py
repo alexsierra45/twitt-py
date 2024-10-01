@@ -5,10 +5,9 @@ from chord.constants import *
 from chord.utils import getShaRepr
 from config import PORT
 
-
 # Class to reference a Chord node
 class ChordNodeReference:
-    def __init__(self, ip: str, port: int = 8001):
+    def __init__(self, ip: str, port: int = PORT):
         self.id = getShaRepr(ip)
         self.ip = ip
         self.port = port
@@ -78,13 +77,6 @@ class ChordNodeReference:
     def ping(self) -> bool:
         response = self._send_data(PING).decode()
         return response == ALIVE
-    
-    def stop_discovering(self):
-        self._send_data(STOP_DISCOVERING)
-    
-    def join(self, node: 'ChordNodeReference') -> bool:
-        response = self._send_data(JOIN, f'{node.id},{node.ip}').decode()
-        return False if response == '' else int(response) == TRUE
     
     def ping_leader(self, id: int, time: int):
         response = self._send_data(PING_LEADER, f'{id},{time}').decode()

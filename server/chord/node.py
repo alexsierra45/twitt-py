@@ -34,26 +34,35 @@ class ChordNode:
 
         self.shutdown_event = threading.Event()
 
-        # Start background threads for stabilization, and checking predecessor
         threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
-        threading.Thread(target=self.stabilize, daemon=True).start()  # Start stabilize thread
-        threading.Thread(target=self.fix_successors, daemon=True).start()  # Start fixing successors
-        threading.Thread(target=self.check_successor, daemon=True).start()  # Start check predecessor thread
-        threading.Thread(target=self.check_predecessor, daemon=True).start()  # Start check predecessor thread
 
         self.finger = FingerTable(self, m) # Finger table
         self.storage = RAMStorage() # Dictionary to store key-value pairs
-        # self.timer = Timer(self) # Node clock
-        # self.elector = Elector(self, self.timer) # Leader regulator
-        self.discoverer = Discoverer(self, self.succ_lock, self.pred_lock) # Broadcast discoverer
+        self.timer = Timer(self) # Node clock
+        self.elector = Elector(self, self.timer) # Leader regulator
+        self.discoverer = Discoverer(self, self.succ_lock, self.pred_lock, self.elector, self.finger) # Broadcast discoverer
+
+        self.discoverer.create_ring_or_join()
+
+        threading.Thread(target=self.finger.fix_fingers, daemon=True).start() # Start fix fingers thread
+        threading.Thread(target=self.stabilize, daemon=True).start() # Start stabilize thread
+        threading.Thread(target=self.fix_successors, daemon=True).start() # Start fixing successors
+        threading.Thread(target=self.check_successor, daemon=True).start() # Start check predecessor thread
+        threading.Thread(target=self.check_predecessor, daemon=True).start() # Start check predecessor thread
+        threading.Thread(target=self.discoverer.listen_for_announcements, daemon=True).start()  # Start fix fingers thread
+        threading.Thread(target=self.elector.check_leader, daemon=True).start() # Start check leader thread
+        threading.Thread(target=self.elector.election_thread, daemon=True).start() # Start election thread
+        threading.Thread(target=self.timer.update_time, daemon=True).start() # Start update time thread
+
 
     # Stabilize method to periodically verify and update the successor and predecessor
     def stabilize(self):
         while not self.shutdown_event.is_set():
             try:
-                with self.succ_lock:
+                with self.succ_lock and self.pred_lock:
                     succ = self.successors.get_index(0)
-                    if succ.id != self.id or (succ.id == self.id and succ.pred.id != self.id):
+                    pred = self.predecessors.get_index(0)
+                    if succ.id != self.id or (succ.id == self.id and pred.id != self.id):
                         logging.info('Stabilizing node')
                         
                         ok = succ.ping()
@@ -79,7 +88,7 @@ class ChordNode:
         if node.id == self.id:
             return
         pred = self.predecessors.get_index(0)
-        if not pred or inbetween(node.id, pred.id, self.id):
+        if pred.id == self.id or inbetween(node.id, pred.id, self.id):
             logging.info(f'Notify from {node.id}')
             self.predecessors.set_index(0, node)
         else:
@@ -133,7 +142,6 @@ class ChordNode:
 
     def get_successor_and_notify(self, index, ip):
         node = ChordNodeReference(ip, self.port)
-        print(node)
 
         with self.succ_lock:
             succ = self.successors.get_index(0)
@@ -143,7 +151,6 @@ class ChordNode:
                 if len(self.predecessors) < index:
                     index = len(self.predecessors)
                 self.predecessors.set_index(index, node)
-        print(succ)
         return succ
     
     def fix_successors(self):
@@ -156,7 +163,7 @@ class ChordNode:
 
     def fix_successor(self, index: int) -> int:
         logging.info(f'Fixing successor {index}')
-        succ: ChordNodeReference
+        succ: ChordNodeReference = None
 
         with self.succ_lock:
             succs_len = len(self.successors)
@@ -179,7 +186,6 @@ class ChordNode:
                 self.successors.remove_index(succs_len)
 
         try:
-            print(succ)
             succ = succ.get_successor_and_notify(index, self.ip)
             if succ.id == self.id or index == self.c - 1:
                 return 0
@@ -265,10 +271,11 @@ class ChordNode:
                     data_resp = self.finger.find_succ(id)
                 elif option == FIND_PREDECESSOR:
                     id = int(data[1])
-                    data_resp = self.finger.find_pred(id)
+                    pred = self.finger.find_pred(id)
+                    data_resp = pred if pred else self.ref
                 elif option == GET_SUCCESSOR:
                     succ = self.successors.get_index(0)
-                    data_resp = succ
+                    data_resp = succ if succ else self.ref
                 elif option == GET_PREDECESSOR:
                     pred = self.predecessors.get_index(0)
                     data_resp = pred if pred else self.ref
@@ -288,12 +295,6 @@ class ChordNode:
                     server_response = self.retrieve_key(key)
                 elif option == PING:
                     server_response = ALIVE
-                elif option == STOP_DISCOVERING:
-                    self.discoverer.stop_discovering()
-                elif option == JOIN:
-                    id = int(data[1])
-                    ip = data[2]
-                    server_response = self.discoverer.join(ChordNodeReference(ip, self.port))
                 elif option == PING_LEADER:
                     id, time = int(data[1]), int(data[2])
                     server_response = self.elector.ping_leader(id, time)
