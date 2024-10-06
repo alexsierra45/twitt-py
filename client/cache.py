@@ -1,81 +1,57 @@
+
 import os
 import shutil
+from turtle import st
 import aiofiles
-import streamlit as st
 import pickle
-
+from filelock import FileLock
 
 class Storage:
-    @staticmethod
-    def store(key, value):
-        st.session_state[key] = value
+    memory_cache = {}
 
-    @staticmethod
-    def get(key, default=None):
-        return st.session_state.get(key, default)
-
-    @staticmethod
-    def delete(key):
-        if st.session_state.get(key):
-            del st.session_state[key]
-
-    @staticmethod
-    def disk_store(key, value):
-        user_path = os.path.expanduser('~')
-        folder_path = f'{user_path}/.socialnetwork'
-
-        # create folder_path if it doesn't exist
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-
-        with open(f'{folder_path}/{key}.txt', 'wb') as f:
-            f.write(pickle.dumps(value))
-
-    @staticmethod
-    def disk_get(key, default=None):
-        user_path = os.path.expanduser('~')
-        file_path = f'{user_path}/.socialnetwork/{key}.txt'
-
-        # if file doesn't exist, return None
-        if not os.path.exists(file_path):
-            return default
-
-        with open(file_path, 'rb') as f:
-            return pickle.loads(f.read())
-
-    @staticmethod
-    def disk_delete(key):
-        user_path = os.path.expanduser('~')
-        path = f'{user_path}/.socialnetwork/{key}.txt'
-        if os.path.exists(path):
-            os.remove(path)
-
-    # same as disk_store but uses aiofiles
     @staticmethod
     async def async_disk_store(key, value):
         user_path = os.path.expanduser('~')
         folder_path = f'{user_path}/.socialnetwork'
+        file_path = f'{folder_path}/{key}.txt'
+        lock_path = f"{file_path}.lock"
 
-        # create folder_path if it doesn't exist
+        # Guardar en la caché de memoria primero
+        Storage.memory_cache[key] = value
+
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        async with aiofiles.open(f'{folder_path}/{key}.txt', 'wb') as f:
-            await f.write(pickle.dumps(value))
+        # Bloquear solo durante la escritura en disco
+        lock = FileLock(lock_path)
+        with lock:
+            async with aiofiles.open(file_path, 'wb') as f:
+                await f.write(pickle.dumps(value))
 
-    # same as disk_get but uses aiofiles
     @staticmethod
     async def async_disk_get(key, default=None):
+        # Intentar recuperar primero de la caché en memoria
+        if key in Storage.memory_cache:
+            return Storage.memory_cache[key]
+
         user_path = os.path.expanduser('~')
         file_path = f'{user_path}/.socialnetwork/{key}.txt'
+        lock_path = f"{file_path}.lock"
 
-        # if file doesn't exist, return None
         if not os.path.exists(file_path):
             return default
 
-        async with aiofiles.open(file_path, 'rb') as f:
-            return pickle.loads(await f.read())
-
+        # Bloqueo en caso de acceso a disco
+        lock = FileLock(lock_path)
+        with lock:
+            async with aiofiles.open(file_path, 'rb') as f:
+                try:
+                    data = await f.read()
+                    result = pickle.loads(data)
+                    Storage.memory_cache[key] = result  # Actualizar la caché en memoria
+                    return result
+                except (EOFError, pickle.UnpicklingError):
+                    return default
     # same as disk_delete but uses aiofiles
     @staticmethod
     async def async_disk_delete(key):
