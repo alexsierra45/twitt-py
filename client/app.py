@@ -21,11 +21,11 @@ async def update_storage():
         try:
             await get_user_posts(user, token, request=True)
             await get_following(user, token, request=True)
-            print(user)
         except Exception as e:
             logger.error(f"Error updating storage: {str(e)}")
     else:
         logger.info("No storage to update. No user found.")
+    
 
 
 def periodic_task(interval, task_function):
@@ -40,7 +40,7 @@ def run_periodic_tasks():
     tasks = [
         # periodic_task(13, update_servers),
         # periodic_task(23, lambda: asyncio.run(process_requests())),
-        periodic_task(100, lambda: asyncio.run(update_storage()))
+        periodic_task(10, lambda: asyncio.run(update_storage()))
     ]
     for task in tasks:
         t = threading.Thread(target=task, daemon=True)

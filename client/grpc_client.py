@@ -22,7 +22,7 @@ def sign_up(email, username, name, password):
     request = auth_pb2.SignUpRequest(user=user)
     try:
         response = auth_stub.SignUp(request)
-        print(response)
+        # print(response)
         return True
     except grpc.RpcError as error:
         logger.error(f"An error occurred creating the user: {error.code()}: {error.details()}")
@@ -46,7 +46,7 @@ def create_post(user_id, content, token):
     request = posts_service_pb2.CreatePostRequest(user_id=user_id, content=content)
     try:
         response = post_stub.CreatePost(request)
-        print(response)
+        # print(response)
         return True
     except grpc.RpcError as error:
         logger.error(f"An error occurred creating the post: {error.code()}: {error.details()}")
@@ -58,7 +58,7 @@ def get_post(post_id, token):
     request = posts_service_pb2.GetPostRequest(post_id=post_id)
     try:
         response = post_stub.GetPost(request)
-        print(response)
+        # print(response)
         return response.post
     except grpc.RpcError as error:
         logger.error(f"An error occurred fetching the post: {error.code()}: {error.details()}")
@@ -70,7 +70,7 @@ def delete_post(post_id, token):
     request = posts_service_pb2.DeletePostRequest(post_id=post_id)
     try:
         response = post_stub.DeletePost(request)
-        print(response)
+        # print(response)
         return True
     except grpc.RpcError as error:
         logger.error(f"An error occurred deleting the post: {error.code()}: {error.details()}")
@@ -82,18 +82,19 @@ def repost(user_id, original_post_id, token):
     request = posts_service_pb2.RepostRequest(user_id=user_id, original_post_id=original_post_id)
     try:
         response = post_stub.Repost(request)
-        print(response)
+        # print(response)
         return True
     except grpc.RpcError as error:
         logger.error(f"An error occurred reposting: {error.code()}: {error.details()}")
         return False
 
 async def get_user_posts(user_id, token, request = False):
-    # if not request:
-    #     cached_posts = await Storage.async_disk_get(f"{user_id}_posts", default=None)
-    #     if cached_posts is not None:
-    #         value = [models_pb2.Post.FromString(v) for v in cached_posts]
-    #         return value
+    if not request:
+        cached_posts = await Storage.async_disk_get(f"{user_id}_posts", default=None)
+        if cached_posts is not None:
+            # print (cached_posts)
+            value = [models_pb2.Post.FromString(v) for v in cached_posts]
+            return value
         
     post_channel = get_authenticated_channel('localhost:50002',token)
     post_stub = posts_service_pb2_grpc.PostServiceStub(post_channel)
@@ -105,9 +106,8 @@ async def get_user_posts(user_id, token, request = False):
         for post in response.posts:
             new_post = models_pb2.Post( post_id = post.post_id, user_id = post.user_id, content = post.content, timestamp = post.timestamp, original_post_id = post.original_post_id)
             new_Posts.append(new_post)
-        serialized_value = [v.SerializeToString() for v in new_Posts]    
+        serialized_value = [v.SerializeToString() for v in new_Posts]   
         await Storage.async_disk_store(f"{user_id}_posts", serialized_value)
-        print(new_Posts)
         return new_Posts
     except grpc.RpcError as error:
         logger.error(f"An error occurred fetching user posts: {error.code()}: {error.details()}")
@@ -119,7 +119,7 @@ def follow_user(user_id, target_user_id, token):
     request = follow_pb2.FollowUserRequest(user_id=user_id, target_user_id=target_user_id)
     try:
         response = follow_stub.FollowUser(request)
-        print(response)
+        # print(response)
         return True
     except grpc.RpcError as error:
         logger.error(f"An error occurred following the user: {error.code()}: {error.details()}")
@@ -131,7 +131,7 @@ def unfollow_user(user_id, target_user_id, token):
     request = follow_pb2.UnfollowUserRequest(user_id=user_id, target_user_id=target_user_id)
     try:
         response = follow_stub.UnfollowUser(request)
-        print(response)
+        # print(response)
         return True
     except grpc.RpcError as error:
         logger.error(f"An error occurred unfollowing the user: {error.code()}: {error.details()}")
@@ -148,9 +148,9 @@ async def get_following(user_id, token, request = False):
     request = follow_pb2.GetFollowingRequest(user_id=user_id)
     try:
         response = follow_stub.GetFollowing(request)
-        print(response)
+        # print(response)
         following_usernames = [username for username in response.following_usernames]
-        await Storage.async_disk_store(f"{user_id}_posts", following_usernames)
+        await Storage.async_disk_store(f"{user_id}_following", following_usernames)
         return response.following_usernames
     except grpc.RpcError as error:
         logger.error(f"An error occurred fetching the following list: {error.code()}: {error.details()}")
