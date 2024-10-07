@@ -53,7 +53,7 @@ class Elector:
         with self.node.succ_lock:
             succ: ChordNodeReference = self.node.successors.get_index(0)
 
-        if (self.node.id == succ.id):
+        if self.node.id == succ.id:
             with self.leader_lock:
                 self.leader = self.node.ref
             logging.info(f"Node {self.node.id} is now the leader")

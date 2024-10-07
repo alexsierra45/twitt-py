@@ -8,10 +8,7 @@ class DynamicList(Generic[T]):
         self.list: List[T] = []
 
     def get_index(self, index: int) -> T:
-        try:
-            return self.list[index]
-        except:
-            return None
+        return self.list[index]
 
     def set_index(self, index: int, value: T):
         new_list = self.list[:index] + [value] + self.list[index:]
