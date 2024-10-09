@@ -5,13 +5,14 @@ import time
 
 from chord.constants import *
 from chord.node_reference import ChordNodeReference
-from chord.storage import RAMStorage
+from chord.storage import Data, RAMStorage
 from chord.utils import getShaRepr, inbetween
 from chord.finger_table import FingerTable
 from chord.discoverer import Discoverer
 from chord.timer import Timer
 from chord.elector import Elector
 from chord.dynamic_list import DynamicList
+from chord.replicator import Replicator
 
 # Class representing a Chord node
 class ChordNode:
@@ -21,15 +22,11 @@ class ChordNode:
         self.port = port
         self.ref = ChordNodeReference(self.ip, self.port)
         self.c = c
-
+ 
         self.successors = DynamicList[ChordNodeReference](c)
-        self.successors.set_index(0, self.ref)  # Initial successor is itself
-        # self.succ = self.ref  # Initial successor is itself
         self.succ_lock = threading.RLock() 
 
         self.predecessors = DynamicList[ChordNodeReference](c)
-        self.predecessors.set_index(0, self.ref)  # Initially no predecessor
-        # self.pred = None  # Initially no predecessor
         self.pred_lock = threading.RLock()
 
         self.shutdown_event = threading.Event()
@@ -37,10 +34,10 @@ class ChordNode:
         threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
 
         self.finger = FingerTable(self, m) # Finger table
-        self.storage = RAMStorage() # Dictionary to store key-value pairs
         self.timer = Timer(self) # Node clock
         self.elector = Elector(self, self.timer) # Leader regulator
-        self.discoverer = Discoverer(self, self.succ_lock, self.pred_lock, self.elector, self.finger) # Broadcast discoverer
+        self.discoverer = Discoverer(self, self.succ_lock, self.pred_lock, self.elector, self.finger) # Chord ring discoverer
+        self.replicator = Replicator(self) # Data replicator
 
         self.discoverer.create_ring_or_join()
 
@@ -222,30 +219,45 @@ class ChordNode:
                     return index % len(self.successors)
 
     def set_key(self, key: str, value: str) -> bool:
-        key_hash = getShaRepr(key)
-        node = self.finger.find_succ(key_hash)
-        return node.store_key(key, value)
+        logging.info(f'Get key {key} with value {value}')
 
-    # Store key method to store a key-value pair and replicate to the successor
-    def store_key(self, key: str, value: str) -> bool:
-        # key_hash = getShaRepr(key)
-        # node = self.finger.find_succ(key_hash)
-        # node.store_key(key, value)
-        # self.storage[key] = value  # Store in the current node
-        # self.succ.store_key(key, value)  # Replicate to the successor    
-        return TRUE if self.storage.set(key, value) else FALSE
+        key_hash = getShaRepr(key)
+        succ = self.finger.find_succ(key_hash)
+
+        with self.timer.time_lock:
+            time = self.timer.time_counter
+
+        response = succ.store_key(key, value, time, True)
+        
+        return response
     
     def get_key(self, key: str) -> str:
-        key_hash = getShaRepr(key)
-        node = self.finger.find_succ(key_hash)
-        return node.retrieve_key(key)
+        logging.info(f'Get key {key}')
 
-    # Retrieve key method to get a value for a given key
-    def retrieve_key(self, key: str) -> str:
-        # key_hash = getShaRepr(key)
-        # node = self.finger.find_succ(key_hash)
-        # return node.retrieve_key(key)
-        return self.storage.get(key)
+        key_hash = getShaRepr(key)
+        succ = self.finger.find_succ(key_hash)
+        data = succ.retrieve_key(key)
+
+        return data.value
+    
+    def remove_key(self, key: str) -> bool:
+        pass
+
+    # Store key method to store a key-value pair and replicate to the successor
+    # def store_key(self, key: str, value: str) -> bool:
+    #     # key_hash = getShaRepr(key)
+    #     # node = self.finger.find_succ(key_hash)
+    #     # node.store_key(key, value)
+    #     # self.storage[key] = value  # Store in the current node
+    #     # self.succ.store_key(key, value)  # Replicate to the successor    
+    #     return TRUE if self.storage.set(key, value) else FALSE
+
+    # # Retrieve key method to get a value for a given key
+    # def retrieve_key(self, key: str) -> str:
+    #     # key_hash = getShaRepr(key)
+    #     # node = self.finger.find_succ(key_hash)
+    #     # return node.retrieve_key(key)
+    #     return self.storage.get(key)
 
     # Start server method to handle incoming requests
     def start_server(self):
@@ -291,11 +303,13 @@ class ChordNode:
                     id = int(data[1])
                     data_resp = self.finger.closest_preceding_finger(id)
                 elif option == STORE_KEY:
-                    key, value = data[1], data[2]
-                    server_response = self.store_key(key, value)
+                    key = data[1]
+                    value, version = data[2], int(data[3])
+                    rep = True if int(data[4]) == TRUE else False
+                    server_response = self.replicator.set(key, Data(value, version), rep)
                 elif option == RETRIEVE_KEY:
                     key = data[1]
-                    server_response = self.retrieve_key(key)
+                    server_response = self.replicator.get(key)
                 elif option == PING:
                     server_response = ALIVE
                 elif option == PING_LEADER:

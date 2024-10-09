@@ -4,6 +4,7 @@ import traceback
 from chord.constants import *
 from chord.utils import getShaRepr
 from config import PORT
+from chord.storage import Data
 
 # Class to reference a Chord node
 class ChordNodeReference:
@@ -59,15 +60,15 @@ class ChordNodeReference:
         response = self._send_data(CLOSEST_PRECEDING_FINGER, str(id)).decode().split(',')
         return ChordNodeReference(response[1], self.port)
 
-    # Method to store a key-value pair in the current node
-    def store_key(self, key: str, value: str) -> bool:
-        response = self._send_data(STORE_KEY, f'{key},{value}').decode()
-        return False if response == '' else int(response) == TRUE
-
     # Method to retrieve a value for a given key from the current node
-    def retrieve_key(self, key: str) -> str:
-        response = self._send_data(RETRIEVE_KEY, key).decode()
-        return response
+    def retrieve_key(self, key: str) -> Data:
+        response = self._send_data(RETRIEVE_KEY, key).decode().split(',')
+        return Data(response[0], int(response[1]))
+    
+    # Method to store a key-value pair in the current node
+    def store_key(self, key: str, value: str, version: int, rep: bool = False) -> bool:
+        response = self._send_data(STORE_KEY, f'{key},{value},{version},{TRUE if rep else FALSE}').decode()
+        return False if response == '' else int(response) == TRUE
     
     # Method to delete a key-value pair in the current node
     def delete_key(self, key: str) -> bool: 
