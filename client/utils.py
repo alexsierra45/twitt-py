@@ -33,6 +33,30 @@ def get_host(service):
     server = random.choice(Storage.get('server', default=['localhost']))
     return f"{server}:{service}"    
 
+def check_host(server):
+    timeout = 5
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    sock.settimeout()
+
+    try:
+        sock.sendto(b"Are you a chord?;client", (server, BROADCAST_PORT))
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            try:
+                response, address = sock.recvfrom(1024)
+                logger.info(f"Received {response} from {address}")
+                if response.startswith(b"Yes, I am a chord"):
+                    return True
+            except socket.timeout:
+                continue
+        return False    
+    except Exception as e:
+        logger.error(f"Error during discovery: {e}")
+    finally:
+        sock.close()
+
 def discover(timeout: int = 5):
     broadcast = '255.255.255.255'
     logger.info(f"Discovering on {broadcast}")
