@@ -128,3 +128,40 @@ class Replicator:
         ok = node.set_partition(code_dict(new_dict), code_dict(new_version), code_dict(removed_dict))
         if not ok:
             logging.error(f'Error replicating all data')
+
+    def fail_predecessor_storage(self):
+        with self.node.pred_lock:
+            pred: ChordNodeReference = self.node.predecessors.get_index(0)
+
+        if pred.id == self.node.id:
+            return
+        
+        logging.info('Absorbe all predecessor data')
+
+        with self.storage.storage_lock:
+            dict, _ = self.storage.get_all()
+            removed_dict, _ = self.storage.get_remove_all()
+
+        new_dict: Dict[str, str] = {}
+        new_version: Dict[str, int] = {}
+        new_removed_dict: Dict[str, int] = {}
+
+        for key, data in dict.items():
+            if inbetween(getShaRepr(key), pred.id, self.node.id):
+                continue
+
+            new_dict[key] = data.value
+            new_version[key] = data.version
+
+        for key, data in removed_dict.items():
+            if inbetween(getShaRepr(key), pred.id, self.node.id):
+                continue
+            
+            new_removed_dict[key] = data.version
+
+        with self.node.succ_lock:
+            for i in range(len(self.node.successors)):
+                succ: ChordNodeReference = self.successors.get_index(i)
+                ok = succ.set_partition(new_dict, new_version, new_removed_dict)
+                if not ok:
+                    logging.error(f'Error replicating in {succ.ip}')

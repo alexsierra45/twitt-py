@@ -52,7 +52,6 @@ class ChordNode:
         threading.Thread(target=self.elector.election_thread, daemon=True).start() # Start election thread
         threading.Thread(target=self.timer.update_time, daemon=True).start() # Start update time thread
 
-
     # Stabilize method to periodically verify and update the successor and predecessor
     def stabilize(self):
         while not self.shutdown_event.is_set():
@@ -132,7 +131,7 @@ class ChordNode:
                         else:
                             self.predecessors.remove_index(0)
 
-                    # n.failPredecessorStorage(predecessor.id)
+                    self.replicator.fail_predecessor_storage()
             time.sleep(10)
 
     def get_successor_and_notify(self, index, ip):
