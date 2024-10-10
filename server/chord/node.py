@@ -217,12 +217,23 @@ class ChordNode:
                     if len(self.successors) == 0:
                         self.successors.set_index(0, self.ref)
                     return index % len(self.successors)
-
-    def set_key(self, key: str, value: str) -> bool:
-        logging.info(f'Get key {key} with value {value}')
+                
+    def get_key(self, key: str) -> str:
+        logging.info(f'Get key {key}')
 
         key_hash = getShaRepr(key)
-        succ = self.finger.find_succ(key_hash)
+        with self.succ_lock:
+            succ = self.finger.find_succ(key_hash)
+        data = succ.retrieve_key(key)
+
+        return data.value
+
+    def set_key(self, key: str, value: str) -> bool:
+        logging.info(f'Set key {key} with value {value}')
+
+        key_hash = getShaRepr(key)
+        with self.succ_lock:
+            succ = self.finger.find_succ(key_hash)
 
         with self.timer.time_lock:
             time = self.timer.time_counter
@@ -231,33 +242,19 @@ class ChordNode:
         
         return response
     
-    def get_key(self, key: str) -> str:
-        logging.info(f'Get key {key}')
+    def remove_key(self, key: str) -> bool:
+        logging.info(f'Remove key {key}')
 
         key_hash = getShaRepr(key)
-        succ = self.finger.find_succ(key_hash)
-        data = succ.retrieve_key(key)
+        with self.succ_lock:
+            succ = self.finger.find_succ(key_hash)
 
-        return data.value
-    
-    def remove_key(self, key: str) -> bool:
-        pass
+        with self.timer.time_lock:
+            time = self.timer.time_counter
 
-    # Store key method to store a key-value pair and replicate to the successor
-    # def store_key(self, key: str, value: str) -> bool:
-    #     # key_hash = getShaRepr(key)
-    #     # node = self.finger.find_succ(key_hash)
-    #     # node.store_key(key, value)
-    #     # self.storage[key] = value  # Store in the current node
-    #     # self.succ.store_key(key, value)  # Replicate to the successor    
-    #     return TRUE if self.storage.set(key, value) else FALSE
+        response = succ.delete_key()
 
-    # # Retrieve key method to get a value for a given key
-    # def retrieve_key(self, key: str) -> str:
-    #     # key_hash = getShaRepr(key)
-    #     # node = self.finger.find_succ(key_hash)
-    #     # return node.retrieve_key(key)
-    #     return self.storage.get(key)
+        return response
 
     # Start server method to handle incoming requests
     def start_server(self):
@@ -310,6 +307,10 @@ class ChordNode:
                 elif option == RETRIEVE_KEY:
                     key = data[1]
                     server_response = self.replicator.get(key)
+                elif option == DELETE_KEY:
+                    key, time = data[1], data[2]
+                    rep = True if int(data[3]) == TRUE else False
+                    server_response = self.replicator.remove(key, time, rep)
                 elif option == PING:
                     server_response = ALIVE
                 elif option == PING_LEADER:

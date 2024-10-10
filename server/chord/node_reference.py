@@ -71,8 +71,8 @@ class ChordNodeReference:
         return False if response == '' else int(response) == TRUE
     
     # Method to delete a key-value pair in the current node
-    def delete_key(self, key: str) -> bool: 
-        response = self._send_data(DELETE_KEY, key).decode()
+    def delete_key(self, key: str, time: int, rep: bool = False) -> bool: 
+        response = self._send_data(DELETE_KEY, f'{key},{time},{TRUE if rep else FALSE}').decode()
         return False if response == '' else int(response) == TRUE
     
     def ping(self) -> bool:
