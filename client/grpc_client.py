@@ -1,22 +1,22 @@
 from typing import Optional
 from venv import logger
 import grpc
-import jwt
 from cache import Storage
-from utils import AuthInterceptor
+from utils import AuthInterceptor, get_host
 from proto import auth_pb2, auth_pb2_grpc, models_pb2, models_pb2_grpc, posts_service_pb2, posts_service_pb2_grpc, follow_pb2, follow_pb2_grpc, users_pb2_grpc, users_pb2
 
+AUTH = 50000
+USER = 50001
+POST = 50002
+FOLLOW = 50003
 
-def get_authenticated_channel(channel, token):
+def get_authenticated_channel(host, token):
     auth_interceptor = AuthInterceptor(token)
-    return grpc.intercept_channel(grpc.insecure_channel(channel), auth_interceptor)
-
-user_channel = grpc.insecure_channel('localhost:50001')
-
-user_stub = users_pb2_grpc.UserServiceStub(user_channel)
+    return grpc.intercept_channel(grpc.insecure_channel(host), auth_interceptor)
 
 def sign_up(email, username, name, password):
-    auth_channel = grpc.insecure_channel('localhost:50000')
+    host = get_host(AUTH)
+    auth_channel = grpc.insecure_channel(host)
     auth_stub = auth_pb2_grpc.AuthStub(auth_channel)
     user = models_pb2.User(email=email, username=username, name=name, password_hash=password)
     request = auth_pb2.SignUpRequest(user=user)
@@ -29,7 +29,8 @@ def sign_up(email, username, name, password):
         return False
 
 def login(username, password):
-    auth_channel = grpc.insecure_channel('localhost:50000')
+    host = get_host(AUTH)
+    auth_channel = grpc.insecure_channel(host)
     auth_stub = auth_pb2_grpc.AuthStub(auth_channel)
     request = auth_pb2.LoginRequest(username=username, password=password)
     try:
@@ -41,7 +42,8 @@ def login(username, password):
         return None
 
 def create_post(user_id, content, token):
-    post_channel = get_authenticated_channel('localhost:50002',token)
+    host = get_host(POST)
+    post_channel = get_authenticated_channel(host ,token)
     post_stub = posts_service_pb2_grpc.PostServiceStub(post_channel)
     request = posts_service_pb2.CreatePostRequest(user_id=user_id, content=content)
     try:
@@ -53,7 +55,8 @@ def create_post(user_id, content, token):
         return False
 
 def get_post(post_id, token):
-    post_channel = get_authenticated_channel('localhost:50002',token)
+    host = get_host(POST)
+    post_channel = get_authenticated_channel(host ,token)
     post_stub = posts_service_pb2_grpc.PostServiceStub(post_channel)
     request = posts_service_pb2.GetPostRequest(post_id=post_id)
     try:
@@ -65,7 +68,8 @@ def get_post(post_id, token):
         return None
 
 def delete_post(post_id, token):
-    post_channel = get_authenticated_channel('localhost:50002',token)
+    host = get_host(POST)
+    post_channel = get_authenticated_channel(host ,token)
     post_stub = posts_service_pb2_grpc.PostServiceStub(post_channel)
     request = posts_service_pb2.DeletePostRequest(post_id=post_id)
     try:
@@ -77,7 +81,8 @@ def delete_post(post_id, token):
         return False
     
 def repost(user_id, original_post_id, token):
-    post_channel = get_authenticated_channel('localhost:50002',token)
+    host = get_host(POST)
+    post_channel = get_authenticated_channel(host ,token)
     post_stub = posts_service_pb2_grpc.PostServiceStub(post_channel)
     request = posts_service_pb2.RepostRequest(user_id=user_id, original_post_id=original_post_id)
     try:
@@ -96,7 +101,8 @@ async def get_user_posts(user_id, token, request = False):
             value = [models_pb2.Post.FromString(v) for v in cached_posts]
             return value
         
-    post_channel = get_authenticated_channel('localhost:50002',token)
+    host = get_host(POST)
+    post_channel = get_authenticated_channel(host ,token)
     post_stub = posts_service_pb2_grpc.PostServiceStub(post_channel)
     request = posts_service_pb2.GetUserPostsRequest(user_id=user_id)
 
@@ -114,7 +120,8 @@ async def get_user_posts(user_id, token, request = False):
         return None    
 
 def follow_user(user_id, target_user_id, token):
-    follow_channel = get_authenticated_channel('localhost:50003',token)
+    host = get_host(FOLLOW)
+    follow_channel = get_authenticated_channel(host ,token)
     follow_stub = follow_pb2_grpc.FollowServiceStub(follow_channel)
     request = follow_pb2.FollowUserRequest(user_id=user_id, target_user_id=target_user_id)
     try:
@@ -126,7 +133,8 @@ def follow_user(user_id, target_user_id, token):
         return False
 
 def unfollow_user(user_id, target_user_id, token):
-    follow_channel = get_authenticated_channel('localhost:50003',token)
+    host = get_host(FOLLOW)
+    follow_channel = get_authenticated_channel(host ,token)
     follow_stub = follow_pb2_grpc.FollowServiceStub(follow_channel)
     request = follow_pb2.UnfollowUserRequest(user_id=user_id, target_user_id=target_user_id)
     try:
@@ -143,7 +151,8 @@ async def get_following(user_id, token, request = False):
         if cached_following is not None:
             return cached_following
         
-    follow_channel = get_authenticated_channel('localhost:50003',token)
+    host = get_host(FOLLOW)
+    follow_channel = get_authenticated_channel(host ,token)
     follow_stub = follow_pb2_grpc.FollowServiceStub(follow_channel)
     request = follow_pb2.GetFollowingRequest(user_id=user_id)
     try:
@@ -157,7 +166,8 @@ async def get_following(user_id, token, request = False):
         return None
 
 def exists_user(user_id, token):
-    user_channel = get_authenticated_channel('localhost:50001',token)
+    host = get_host(USER)
+    user_channel = get_authenticated_channel(host ,token)
     user_stub = users_pb2_grpc.UserServiceStub(user_channel)
     request = users_pb2.GetUserRequest(username=user_id)
     try:

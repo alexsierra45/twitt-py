@@ -9,6 +9,7 @@ from app_controller import run
 from streamlit.runtime.scriptrunner import add_script_run_ctx
 import streamlit as st
 
+from utils import update_servers
 from grpc_client import get_following, get_user_posts
 
 async def update_storage():
@@ -38,8 +39,7 @@ def periodic_task(interval, task_function):
 
 def run_periodic_tasks():
     tasks = [
-        # periodic_task(13, update_servers),
-        # periodic_task(23, lambda: asyncio.run(process_requests())),
+        periodic_task(13, update_servers),
         periodic_task(10, lambda: asyncio.run(update_storage()))
     ]
     for task in tasks:

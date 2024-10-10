@@ -5,9 +5,23 @@ from turtle import st
 import aiofiles
 import pickle
 from filelock import FileLock
+import streamlit as st
 
 class Storage:
     memory_cache = {}
+
+    @staticmethod
+    def store(key, value):
+        st.session_state[key] = value
+
+    @staticmethod
+    def get(key, default=None):
+        return st.session_state.get(key, default)
+
+    @staticmethod
+    def delete(key):
+        if st.session_state.get(key):
+            del st.session_state[key]
 
     @staticmethod
     async def async_disk_store(key, value):
@@ -63,6 +77,7 @@ class Storage:
     @staticmethod
     def clear():
         st.session_state.clear()
+        Storage.memory_cache = {}
 
         # remove all files at folder_path with shutil.rmtree
         user_path = os.path.expanduser('~')
