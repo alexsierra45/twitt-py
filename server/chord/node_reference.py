@@ -3,11 +3,12 @@ import socket
 import traceback
 from chord.constants import *
 from chord.utils import getShaRepr
-
+from config import PORT
+from chord.storage import Data
 
 # Class to reference a Chord node
 class ChordNodeReference:
-    def __init__(self, ip: str, port: int = 8001):
+    def __init__(self, ip: str, port: int = PORT):
         self.id = getShaRepr(ip)
         self.ip = ip
         self.port = port
@@ -59,39 +60,40 @@ class ChordNodeReference:
         response = self._send_data(CLOSEST_PRECEDING_FINGER, str(id)).decode().split(',')
         return ChordNodeReference(response[1], self.port)
 
-    # Method to store a key-value pair in the current node
-    def store_key(self, key: str, value: str) -> bool:
-        response = self._send_data(STORE_KEY, f'{key},{value}').decode()
-        return False if response == '' else int(response) == TRUE
-
     # Method to retrieve a value for a given key from the current node
-    def retrieve_key(self, key: str) -> str:
-        response = self._send_data(RETRIEVE_KEY, key).decode()
-        return response
+    def retrieve_key(self, key: str) -> Data:
+        response = self._send_data(RETRIEVE_KEY, key).decode().split(',')
+        return Data(response[0], int(response[1]))
+    
+    # Method to store a key-value pair in the current node
+    def store_key(self, key: str, value: str, version: int, rep: bool = False) -> bool:
+        response = self._send_data(STORE_KEY, f'{key},{value},{version},{TRUE if rep else FALSE}').decode()
+        return False if response == '' else int(response) == TRUE
     
     # Method to delete a key-value pair in the current node
-    def delete_key(self, key: str) -> bool: 
-        response = self._send_data(DELETE_KEY, key).decode()
+    def delete_key(self, key: str, time: int, rep: bool = False) -> bool: 
+        response = self._send_data(DELETE_KEY, f'{key},{time},{TRUE if rep else FALSE}').decode()
         return False if response == '' else int(response) == TRUE
     
     def ping(self) -> bool:
         response = self._send_data(PING).decode()
         return response == ALIVE
     
-    def stop_discovering(self):
-        self._send_data(STOP_DISCOVERING)
-    
-    def join(self, node: 'ChordNodeReference') -> bool:
-        response = self._send_data(JOIN, f'{node.id},{node.ip}').decode()
-        return False if response == '' else int(response) == TRUE
-    
     def ping_leader(self, id: int, time: int):
         response = self._send_data(PING_LEADER, f'{id},{time}').decode()
         return int(response)
 
-    def election(self, first_id: int, leader_ip: int, leader_port: int):
+    def election(self, first_id: int, leader_ip: int, leader_port: int) -> 'ChordNodeReference':
         response = self._send_data(ELECTION, f'{first_id},{leader_ip},{leader_port}').decode().split(',')
         return ChordNodeReference(response[0], response[1])
+    
+    def get_successor_and_notify(self, index, ip) -> 'ChordNodeReference':
+        response = self._send_data(GET_SUCCESSOR_AND_NOTIFY, f'{index},{ip}').decode().split(',')
+        return ChordNodeReference(response[1], self.port)
+    
+    def set_partition(self, dict: str, version: str, remove: str) -> bool:
+        response = self._send_data(SET_PARTITION, f'{dict},{version},{remove}').decode()
+        return False if response == '' else int(response) == TRUE
 
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'

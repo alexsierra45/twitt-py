@@ -7,13 +7,10 @@ from chord.node_reference import ChordNodeReference
 class Elector:
     def __init__(self, node, timer: Timer) -> None:
         self.node = node
-        self.leader: ChordNodeReference = self.node.ref # Initial ring leader is itself
+        self.leader: ChordNodeReference = None
         self.leader_lock = threading.RLock()
         
         self.timer = timer
-
-        threading.Thread(target=self.check_leader, daemon=True).start()  # Start check leader thread
-        threading.Thread(target=self.election_thread, daemon=True).start()  # Start election thread
 
     def ping_leader(self, id: int, time: int):
         with self.timer.time_lock:
@@ -27,7 +24,7 @@ class Elector:
     def check_leader(self):
         while not self.node.shutdown_event.is_set():
             with self.leader_lock:
-                if self.leader.id != self.node.id:
+                if self.leader and self.leader.id != self.node.id:
                     logging.info(f"Check leader: {self.leader.id}")
 
                     with self.timer.time_lock:
@@ -54,9 +51,9 @@ class Elector:
 
     def request_election(self):
         with self.node.succ_lock:
-            succ: ChordNodeReference = self.node.succ
+            succ: ChordNodeReference = self.node.successors.get_index(0)
 
-        if (self.node.id == succ.id):
+        if self.node.id == succ.id:
             with self.leader_lock:
                 self.leader = self.node.ref
             logging.info(f"Node {self.node.id} is now the leader")
@@ -86,7 +83,7 @@ class Elector:
             leader = self.node.ref
 
         with self.node.succ_lock:
-            succ: ChordNodeReference = self.node.succ
+            succ: ChordNodeReference = self.node.successors.get_index(0)
 
         if succ.id == self.node.id or succ.id == first_id:
             with self.leader_lock:

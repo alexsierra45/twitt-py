@@ -10,10 +10,10 @@ STORE_KEY = 8
 RETRIEVE_KEY = 9
 DELETE_KEY = 10
 PING = 11
-STOP_DISCOVERING = 12
-JOIN = 13
-PING_LEADER = 14
-ELECTION = 15
+PING_LEADER = 12
+ELECTION = 13
+GET_SUCCESSOR_AND_NOTIFY = 14
+SET_PARTITION = 15
 
 # Booleans
 FALSE = 0
@@ -21,3 +21,6 @@ TRUE = 1
 
 # Messages
 ALIVE = 'Im alive'
+ARE_YOU = 'Are you a chord?'
+YES_IM = 'Yes, I am a chord'
+EMPTY = ''

@@ -16,8 +16,6 @@ class Timer:
         self.node_timers[self.node.id] = now
 
         self.time_lock = threading.Lock()
-        
-        threading.Thread(target=self.update_time, daemon=True).start()
 
     def berkley_algorithm(self) -> int:
         total_time = sum(self.node_timers.values())
