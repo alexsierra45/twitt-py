@@ -9,8 +9,8 @@ from cryptography.hazmat.backends import default_backend
 from config import PASSWORD, RSA_PRIVATE_KEY_PATH, RSA_PUBLIC_KEY_PATH
 from persistency.user import UserPersitency
 from services.interceptors import AuthInterceptor, StreamLoggingInterceptor, UnaryLoggingInterceptor
-from interfaces.grpc.proto.auth_pb2 import LoginResponse, SignUpResponse
-from interfaces.grpc.proto.auth_pb2_grpc import AuthServicer, add_AuthServicer_to_server
+from interfaces.grpc.services.auth_pb2 import LoginResponse, SignUpResponse
+from interfaces.grpc.services.auth_pb2_grpc import AuthServicer, add_AuthServicer_to_server
 
 class AuthService(AuthServicer):
     def __init__(self, jwt_private_key, user_persistency: UserPersitency):
@@ -37,7 +37,6 @@ class AuthService(AuthServicer):
 
     def SignUp(self, request, context):
         user = request.user
-        print(user)
 
         if not is_email_valid(user.email):
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid email")

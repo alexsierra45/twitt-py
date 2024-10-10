@@ -1,5 +1,5 @@
 import base64
-import os
+# import os
 import logging
 import grpc
 
@@ -7,11 +7,13 @@ from chord.node import ChordNode
 
 logging.basicConfig(level=logging.DEBUG)
 
+# full_path = os.path.join("data", path.lower() + ".bin")
+
+def is_empty(data: str):
+    return data == ''
 
 def save(node: ChordNode, obj, path):
-    full_path = os.path.join("data", path.lower() + ".bin")
-
-    logging.debug(f"Saving file: {full_path}")
+    logging.debug(f"Saving file: {path}")
 
     try:
         data = obj.SerializeToString()
@@ -21,20 +23,18 @@ def save(node: ChordNode, obj, path):
 
     str_data = base64.b64encode(data).decode('utf-8')
 
-    err = node.set_key(full_path, str_data)
-    if err:
+    ok = node.set_key(path, str_data)
+    if not ok:
         logging.error("Error saving file")
         return grpc.StatusCode.INTERNAL
     return None
 
 def load(node: ChordNode, path, obj):
-    full_path = os.path.join("data", path.lower() + ".bin")
+    logging.debug(f"Loading file: {path}")
 
-    logging.debug(f"Loading file: {full_path}")
-
-    data_str, err = node.get_key(full_path)
-    if err:
-        logging.error(f"Error getting file: {err}")
+    data_str = node.get_key(path)
+    if is_empty(data_str):
+        logging.error(f"Error getting file")
         return None, grpc.StatusCode.NOT_FOUND
 
     try:
@@ -47,29 +47,25 @@ def load(node: ChordNode, path, obj):
     return obj, None
 
 def delete(node: ChordNode, path):
-    full_path = os.path.join("data", path.lower() + ".bin")
+    logging.debug(f"Deleting file: {path}")
 
-    logging.debug(f"Deleting file: {full_path}")
-
-    err = node.remove_key(full_path)
-    if err:
-        logging.error(f"Error deleting file: {err}")
+    ok = node.remove_key(path)
+    if not ok:
+        logging.error(f"Error deleting file")
         return grpc.StatusCode.INTERNAL
 
     return None
 
 def file_exists(node: ChordNode, path):
-    full_path = os.path.join("data", path.lower() + ".bin")
+    logging.debug(f"Checking if file exists: {path}")
 
-    logging.debug(f"Checking if file exists: {full_path}")
-
-    _, err = node.get_key(full_path)
-    if err == grpc.StatusCode.NOT_FOUND:
+    exists = not is_empty(node.get_key(path))
+    if not exists:
         logging.debug("File doesn't exist")
         return False, None
-    elif err:
-        logging.error(f"Error getting file: {err}")
-        return False, grpc.StatusCode.INTERNAL
+    # elif err:
+    #     logging.error(f"Error getting file: {err}")
+    #     return False, grpc.StatusCode.INTERNAL
 
-    logging.debug(f"File already exists: {full_path}")
+    logging.debug(f"File already exists: {path}")
     return True, None
