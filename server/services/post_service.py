@@ -9,7 +9,7 @@ from config import RSA_PUBLIC_KEY_PATH
 from services.interceptors import AuthInterceptor, StreamLoggingInterceptor, UnaryLoggingInterceptor
 from interfaces.grpc.proto.posts_pb2 import GetPostResponse, CreatePostResponse, RepostResponse, DeletePostResponse, GetUserPostsResponse
 from interfaces.grpc.proto.posts_pb2_grpc import PostServiceServicer, add_PostServiceServicer_to_server
-from interfaces.grpc.proto.models_pb2 import Post, UserPosts
+from interfaces.grpc.models.models_pb2 import Post
 
 class PostService(PostServiceServicer):
     def __init__(self, user_persistency, post_persistency):
