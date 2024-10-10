@@ -6,7 +6,7 @@ import time
 from chord.constants import *
 from chord.node_reference import ChordNodeReference
 from chord.storage import Data, RAMStorage
-from chord.utils import getShaRepr, inbetween
+from chord.utils import decode_dict, getShaRepr, inbetween
 from chord.finger_table import FingerTable
 from chord.discoverer import Discoverer
 from chord.timer import Timer
@@ -66,7 +66,7 @@ class ChordNode:
                     with self.succ_lock:
                         self.successors.set_index(0, succ_pred)
                     succ_pred.notify(self.ref)
-                    # n.replicateAllData(pred)
+                    self.replicator.replicate_all_data(succ_pred)
                 else:
                     if succ.id != self.id:
                         succ.notify(self.ref)
@@ -191,8 +191,7 @@ class ChordNode:
                 
                 if index == succs_len - 1:
                     self.successors.set_index(index + 1, succ)
-                    # replicate all data
-                    # self.replicate_all_dat(succ)
+                    self.replicator.replicate_all_data(succ)
                     return (index + 1) % len(self.successors)
                 
                 next_succ = self.successors.get_index(index + 1)
@@ -205,9 +204,7 @@ class ChordNode:
                             find = True
 
                     if find:
-                        # replicate all data
-                        # self.replicate_all_dat(succ)
-                        pass
+                        self.replicator.replicate_all_data(succ)
 
                 return (index + 1) % len(self.successors)
             except Exception as e:
@@ -252,7 +249,7 @@ class ChordNode:
         with self.timer.time_lock:
             time = self.timer.time_counter
 
-        response = succ.delete_key()
+        response = succ.delete_key(key, time, True)
 
         return response
 
@@ -289,7 +286,6 @@ class ChordNode:
                     data_resp = succ if succ else self.ref
                 elif option == GET_PREDECESSOR:
                     pred = self.predecessors.get_index(0)
-                    print(pred)
                     data_resp = pred if pred else self.ref
                 elif option == NOTIFY:
                     ip, port = data[1], int(data[2])
@@ -322,6 +318,11 @@ class ChordNode:
                 elif option == GET_SUCCESSOR_AND_NOTIFY:
                     index, ip = int(data[1]), data[2]
                     data_resp = self.get_successor_and_notify(index, ip)
+                elif option == SET_PARTITION:
+                    dict = decode_dict(data[1])
+                    version = decode_dict(data[2])
+                    removed_dict = decode_dict(data[3])
+                    server_response = self.replicator.set_partition(dict, version, removed_dict)
 
                 response = None
                 if data_resp:

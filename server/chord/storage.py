@@ -1,5 +1,5 @@
 import threading
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 class Data:
     def __init__(self, value: str, version: int, active: bool = True) -> None:
@@ -36,7 +36,7 @@ class Storage:
     def remove(self, key, time) -> bool:
         pass
 
-    def remove_all(self, dict: List[str]) -> bool:
+    def remove_all(self, dict: Dict[str, int]) -> bool:
         pass
 
 class RAMStorage(Storage):
@@ -83,10 +83,11 @@ class RAMStorage(Storage):
 
         return True
     
-    def remove_all(self, keys: List[str]) -> bool:
-        for key in keys:
+    def remove_all(self, dict: Dict[str, int]) -> bool:
+        for key, version in dict.items():
             data = self.storage[key]
             data.active = False
+            data.version = version
             self.storage[key] = data
 
         return True

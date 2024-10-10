@@ -90,6 +90,10 @@ class ChordNodeReference:
     def get_successor_and_notify(self, index, ip) -> 'ChordNodeReference':
         response = self._send_data(GET_SUCCESSOR_AND_NOTIFY, f'{index},{ip}').decode().split(',')
         return ChordNodeReference(response[1], self.port)
+    
+    def set_partition(self, dict: str, version: str, remove: str) -> bool:
+        response = self._send_data(SET_PARTITION, f'{dict},{version},{remove}').decode()
+        return False if response == '' else int(response) == TRUE
 
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'
