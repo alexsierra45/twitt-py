@@ -18,7 +18,7 @@ def update_server():
 
 def discover():
         logging.info('Looking for a chord ring via broadcast!!!')
-        timeout = 5
+        timeout = 2
 
         broadcast_addr = ('<broadcast>', BROADCAST_PORT)
 
@@ -43,7 +43,7 @@ def discover():
                 message = res[0]
 
                 if message == YES_IM and len(res) == 2:
-                    return addr
+                    return addr[0]
                 
             except socket.timeout:
                 continue
@@ -61,23 +61,17 @@ def is_server_alive(host, port, timeout=1):
         return False
 
 def get_host(service):
-    server = Storage.get('server', default=['localhost'])
-    
-    if is_server_alive(server, int(service)):
-        return f"{server}:{service}"    
-    
-    else:
-        update_server()
-        server = Storage.get('server', default=['localhost'])
-        if(server): 
-            return f"{server}:{service}"
+    server = Storage.get('server', default='localhost')
 
-    
+    if not is_server_alive(server, int(service)):
+        update_server()
+        server = Storage.get('server', default='localhost')
+
+    if server and is_server_alive(server, int(service)):
+        return (f"{server}:{service}")
+
     raise ConnectionError("No available servers are alive.")
 
-
 def get_authenticated_channel(host, token):
-    print(isinstance(host, str))
-    test = "172.17.0.5:50002"
     auth_interceptor = AuthInterceptor(token)
-    return grpc.intercept_channel(grpc.insecure_channel(test), auth_interceptor)
+    return grpc.intercept_channel(grpc.insecure_channel(host), auth_interceptor)

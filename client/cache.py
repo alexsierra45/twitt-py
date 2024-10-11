@@ -1,6 +1,7 @@
 
 import os
 import shutil
+from venv import logger
 import aiofiles
 import pickle
 from filelock import FileLock
@@ -75,7 +76,10 @@ class Storage:
 
     @staticmethod
     def clear():
+        server = Storage.get('server', default='localhost')
         st.session_state.clear()
+        Storage.store('server', server)
+        
         Storage.memory_cache = {}
 
         # remove all files at folder_path with shutil.rmtree
@@ -84,3 +88,5 @@ class Storage:
 
         if os.path.exists(folder_path):
             shutil.rmtree(folder_path)
+
+

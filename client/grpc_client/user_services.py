@@ -14,6 +14,6 @@ def exists_user(user_id, token):
         response = user_stub.GetUser(request)
         if response: return True
     except grpc.RpcError as error:
-        logger.error(f"An error occurred fetching the following list: {error.code()}: {error.details()}")
+        logger.error(f"An error occurred getting user: {error.code()}: {error.details()}")
         return None
 

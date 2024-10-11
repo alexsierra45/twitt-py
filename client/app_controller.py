@@ -1,3 +1,4 @@
+from venv import logger
 import streamlit as st
 from cache import Storage
 from grpc_client.auth_services import login, sign_up
@@ -6,7 +7,7 @@ from grpc_client.post_services import create_post, delete_post, get_user_posts, 
 from grpc_client.user_services import exists_user
 
 
-def login_page():
+async def login_page():
     st.title("Login")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
@@ -16,11 +17,12 @@ def login_page():
             st.session_state['username'] = username
             st.session_state['token'] = token
             st.success("Logged in successfully")
+            await update_storage()
             st.rerun()
         else:
             st.error("Login failed")
 
-def sign_up_page():
+async def sign_up_page():
     st.title("Sign Up")
     email = st.text_input("Email", key="signup_email")
     username = st.text_input("Username", key="signup_username")
@@ -55,6 +57,7 @@ async def home():
                 if st.button("Delete", key=f"delete_{post.post_id}"):
                     if delete_post(post.post_id, token):
                         st.success("Post deleted successfully")
+                        await update_storage()
                         st.rerun()
                     else:
                         st.error("Failed to delete post")
@@ -66,6 +69,7 @@ async def home():
     if st.button("Post"):
         if create_post(st.session_state['username'], new_post, token):
             st.success("Posted successfully")
+            await update_storage()
             st.rerun()
         else:
             st.error("Failed to create post")
@@ -93,6 +97,7 @@ async def following():
                 if st.button(f"Unfollow", key=f"unfollow_{user}"):
                     if unfollow_user(current_user, user, token):
                         st.success(f"Unfollowed {user} successfully")
+                        await update_storage()
                         st.rerun()
                     else:
                         st.error(f"Failed to unfollow {user}")
@@ -105,6 +110,7 @@ async def following():
                     if st.button(f"Repost", key=f"repost_{post.post_id}"):
                         if repost(current_user, post.post_id, token):
                             st.success("Post reposted successfully")
+                            await update_storage()
                             st.rerun()
                         else:
                             st.error("Failed to repost post")
@@ -129,6 +135,7 @@ async def following():
                         if st.button(f"Follow {search_username}"):
                             if follow_user(current_user, search_username, token):
                                 st.success(f"Followed {search_username} successfully")
+                                await update_storage()
                                 st.rerun()
                             else:
                                 st.error(f"Failed to follow {search_username}")
@@ -141,6 +148,7 @@ async def following():
                             if st.button(f"Repost", key=f"repost_{post.post_id}"):
                                 if repost(current_user, post.post_id, token):
                                     st.success("Post reposted successfully")
+                                    await update_storage()
                                     st.rerun()
                                 else:
                                     st.error("Failed to repost post")
@@ -164,9 +172,9 @@ async def run():
     if st.session_state['username'] is None:
         page = st.sidebar.selectbox("Select page", ["Login", "Sign Up"])
         if page == "Login":
-            login_page()
+            await login_page()
         elif page == "Sign Up":
-            sign_up_page()
+            await sign_up_page()
     else:
         st.sidebar.title(f"Logged in as {st.session_state['username']}")
         if st.sidebar.button("Logout"):
@@ -176,3 +184,20 @@ async def run():
             await home()
         elif page == "Following":
             await following()
+
+
+async def update_storage():
+    if 'username' not in st.session_state:
+        st.session_state['username'] = None
+
+    user = st.session_state['username']  
+    if user:
+        token =  st.session_state['token']  
+        try:
+            await get_user_posts(user, token, request=True)
+            await get_following(user, token, request=True)
+        except Exception as e:
+            logger.error(f"Error updating storage: {str(e)}")
+    else:
+        logger.info("No storage to update. No user found.")
+    
