@@ -4,7 +4,7 @@ from chord.storage import Data, DefaultData, RAMStorage, Storage
 from chord.node_reference import ChordNodeReference
 from chord.constants import FALSE, TRUE
 from chord.dynamic_list import DynamicList
-from chord.utils import code_dict, getShaRepr, inbetween
+from chord.utils import code_dict, decode_dict, getShaRepr, inbetween
 
 
 class Replicator:
@@ -161,7 +161,111 @@ class Replicator:
 
         with self.node.succ_lock:
             for i in range(len(self.node.successors)):
-                succ: ChordNodeReference = self.successors.get_index(i)
-                ok = succ.set_partition(new_dict, new_version, new_removed_dict)
+                succ: ChordNodeReference = self.node.successors.get_index(i)
+                if succ.id == self.node.id:
+                    continue
+                ok = succ.set_partition(code_dict(new_dict), code_dict(new_version), code_dict(new_removed_dict))
                 if not ok:
                     logging.error(f'Error replicating in {succ.ip}')
+
+    def resolve_data(self, dict: Dict[str, str], version: Dict[str, int], removed_dict: Dict[str, int]) -> str:
+        logging.info('Resolving data versions')
+
+        new_dict: Dict[str, Data] = {}
+        res_dict_value: Dict[str, str] = {}
+        res_dict_version: Dict[str, int] = {}
+        res_removed_dict: Dict[str, int] = {}
+
+        with self.storage.storage_lock:
+            actual_dict, error = self.storage.get_all()
+            if not error:
+                return ''
+            
+            for key, value in dict.items():
+                try:
+                    data = actual_dict[key]
+                except:
+                    data = DefaultData()
+
+                if data.version > version[key]:
+                    res_dict_value[key] = data.value
+                    res_dict_version[key] = data.version
+                else:
+                    new_dict[key] = Data(value, version[key])
+
+            for key, time in removed_dict.items():
+                try:
+                    data = actual_dict[key]
+                except:
+                    data = DefaultData()
+
+                if data.version > time:
+                    res_dict_value[key] = data.value
+                    res_dict_version[key] = data.version
+                else:
+                    self.storage.remove(key, time)
+
+            remove, _ = self.storage.get_remove_all()
+
+            for key, data in remove.items():
+                time = version[key]
+
+                if data.version > time:
+                    res_removed_dict[key] = data.version
+
+            self.storage.set_all(new_dict)
+
+            return f'{code_dict(res_dict_value)},{code_dict(res_dict_version)},{code_dict(res_removed_dict)}'
+
+    def new_predecessor_storage(self):
+        with self.node.succ_lock:
+            pred: ChordNodeReference = self.node.predecessors.get_index(0)
+            pred_pred: ChordNodeReference
+            if len(self.node.predecessors) > 1:
+                pred_pred = self.node.predecessors.get_index(1)
+            else:
+                pred_pred = self.node.ref
+
+        if pred.id == pred_pred.id:
+            return
+        
+        logging.info('Delegate predecessor data')
+
+        with self.storage.storage_lock:
+            dict, _ = self.storage.get_all()
+            remove, _ = self.storage.get_remove_all()
+
+        new_dict: Dict[str, str] = {}
+        new_version: Dict[str, int] = {}
+        new_removed_dict: Dict[str, int] = {}
+
+        for key, data in dict.items():
+            if not inbetween(getShaRepr(key), pred_pred.id, pred.id):
+                continue
+
+            new_dict[key] = data.value
+            new_version[key] = data.version
+
+        for key, data in remove.items():
+            if not inbetween(getShaRepr(key), pred_pred.id, pred.id):
+                continue
+
+            new_removed_dict[key] = data.version
+
+        response, ok = pred.resolve_data(code_dict(new_dict), code_dict(new_version), code_dict(new_removed_dict))
+        if not ok:
+            logging.error(f'Error resolving data in {pred.ip}')
+            return
+        
+        res_dict: Dict[str, str] = decode_dict(response[0])
+        res_version: Dict[str, int] = decode_dict(response[1])
+        res_removed_dict: Dict[str, int] = decode_dict(response[2])
+
+        new_res_dict: Dict[str, Data] = {}
+
+        for key, value in res_dict.items():
+            new_res_dict[key] = Data(value, res_version[key])
+        
+        with self.storage.storage_lock:
+            self.storage.set_all(new_res_dict)
+            self.storage.remove_all(res_removed_dict)

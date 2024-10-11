@@ -66,6 +66,8 @@ class ChordNode:
                         self.successors.set_index(0, succ_pred)
                     succ_pred.notify(self.ref)
                     self.replicator.replicate_all_data(succ_pred)
+                    # if ok:
+                    #     self.replicator.replicate_all_data(succ_pred)
                 else:
                     if succ.id != self.id:
                         succ.notify(self.ref)
@@ -85,14 +87,16 @@ class ChordNode:
             pred = self.predecessors.get_index(0)
             if pred.id == self.id or inbetween(node.id, pred.id, self.id):
                 logging.info(f'Notify from {node.id}')
-                if pred.id == self.id:
-                    self.predecessors.remove_index(0)
-                self.predecessors.set_index(0, node)
+                with self.pred_lock:
+                    if pred.id == self.id:
+                        self.predecessors.remove_index(0)
+                    self.predecessors.set_index(0, node)
 
-                # new predecessor storage
-                # n.newPredecessorStorage()
+                self.replicator.new_predecessor_storage()
+                return TRUE
             else:
                 logging.info(f'No update needed for node {node.id}')
+                return FALSE
 
     # Check successor method to periodically verify if the successor is alive
     def check_successor(self):
@@ -288,7 +292,7 @@ class ChordNode:
                     data_resp = pred if pred else self.ref
                 elif option == NOTIFY:
                     ip, port = data[1], int(data[2])
-                    self.notify(ChordNodeReference(ip, port))
+                    server_response = self.notify(ChordNodeReference(ip, port))
                 elif option == CHECK_PREDECESSOR:
                     pass
                 elif option == CLOSEST_PRECEDING_FINGER:
@@ -322,6 +326,11 @@ class ChordNode:
                     version = decode_dict(data[2])
                     removed_dict = decode_dict(data[3])
                     server_response = self.replicator.set_partition(dict, version, removed_dict)
+                elif option == RESOLVE_DATA:
+                    dict = decode_dict(data[1])
+                    version = decode_dict(data[2])
+                    removed_dict = decode_dict(data[3])
+                    server_response = self.replicator.resolve_data(dict, version, removed_dict)
 
                 response = None
                 if data_resp:

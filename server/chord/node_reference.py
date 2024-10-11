@@ -1,6 +1,7 @@
 import logging
 import socket
 import traceback
+from typing import List, Tuple
 from chord.constants import *
 from chord.utils import getShaRepr
 from config import PORT
@@ -49,7 +50,8 @@ class ChordNodeReference:
 
     # Method to notify the current node about another node
     def notify(self, node: 'ChordNodeReference'):
-        self._send_data(NOTIFY, f'{node.ip},{node.port}')
+        response = self._send_data(NOTIFY, f'{node.ip},{node.port}')
+        # return False if response == '' else int(response) == TRUE
 
     # Method to check if the predecessor is alive
     def check_predecessor(self):
@@ -94,6 +96,10 @@ class ChordNodeReference:
     def set_partition(self, dict: str, version: str, remove: str) -> bool:
         response = self._send_data(SET_PARTITION, f'{dict},{version},{remove}').decode()
         return False if response == '' else int(response) == TRUE
+    
+    def resolve_data(self, dict: str, version: str, remove: str) -> Tuple[List[str], bool]:
+        response = self._send_data(RESOLVE_DATA, f'{dict},{version},{remove}').decode().split(',')
+        return response, len(response) > 1
 
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'
