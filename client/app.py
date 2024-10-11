@@ -1,16 +1,13 @@
-
-
 import asyncio
 import threading
 import time
-from turtle import st
 from venv import logger
 from app_controller import run
 from streamlit.runtime.scriptrunner import add_script_run_ctx
 import streamlit as st
 
 from utils import update_servers
-from grpc_client import get_following, get_user_posts
+from client.grpc_client.grpc_client import get_following, get_user_posts
 
 async def update_storage():
     if 'username' not in st.session_state:
@@ -39,8 +36,8 @@ def periodic_task(interval, task_function):
 
 def run_periodic_tasks():
     tasks = [
-        periodic_task(13, update_servers),
-        periodic_task(10, lambda: asyncio.run(update_storage()))
+        periodic_task(10, update_servers),
+        periodic_task(100, lambda: asyncio.run(update_storage()))
     ]
     for task in tasks:
         t = threading.Thread(target=task, daemon=True)
@@ -50,7 +47,6 @@ def run_periodic_tasks():
 
 
 async def main():
-
     run_periodic_tasks()
 
     await run()

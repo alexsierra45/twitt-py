@@ -1,7 +1,6 @@
 
 import os
 import shutil
-from turtle import st
 import aiofiles
 import pickle
 from filelock import FileLock
@@ -66,7 +65,7 @@ class Storage:
                     return result
                 except (EOFError, pickle.UnpicklingError):
                     return default
-    # same as disk_delete but uses aiofiles
+                
     @staticmethod
     async def async_disk_delete(key):
         user_path = os.path.expanduser('~')

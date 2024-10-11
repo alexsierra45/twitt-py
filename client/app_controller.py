@@ -1,7 +1,9 @@
-import time
 import streamlit as st
 from cache import Storage
-from grpc_client import delete_post, exists_user, repost, sign_up, login, create_post, get_user_posts, follow_user, unfollow_user, get_following
+from grpc_client.auth_services import login, sign_up
+from grpc_client.follow_services import follow_user, get_following, unfollow_user
+from grpc_client.post_services import create_post, delete_post, get_user_posts, repost
+from grpc_client.user_services import exists_user
 
 
 def login_page():

@@ -3,7 +3,7 @@ import grpc
 
 from chord.node import ChordNode
 from persistency.persistency import save, load, delete, file_exists
-from interfaces.grpc.proto.models_pb2 import Post, UserPosts
+from interfaces.grpc.models.models_pb2 import Post, UserPosts
 
 class PostPersitency:
     def __init__(self, node: ChordNode) -> None:
