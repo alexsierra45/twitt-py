@@ -40,6 +40,7 @@ async def home():
         st.title("Home")
     with col2:
         if st.button("Refresh", key="refresh_home"):
+            await update_storage()
             st.rerun()
 
     st.subheader("Your Feed")
@@ -80,6 +81,7 @@ async def following():
         st.title("Following Page")
     with col2:
         if st.button("Refresh", key="refresh_following"):
+            await update_storage()
             st.rerun()
 
     token = st.session_state['token']
@@ -195,7 +197,9 @@ async def update_storage():
         token =  st.session_state['token']  
         try:
             await get_user_posts(user, token, request=True)
-            await get_following(user, token, request=True)
+            users_following = await get_following(user, token, request=True)
+            for user in users_following:
+                await get_user_posts(user, token, request=True)
         except Exception as e:
             logger.error(f"Error updating storage: {str(e)}")
     else:
