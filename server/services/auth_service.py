@@ -93,3 +93,6 @@ def load_private_key():
             backend=default_backend()
         )
     return private_key
+
+def check_permission(user_persistency, user_id):
+    return user_persistency.exists_user(user_id)

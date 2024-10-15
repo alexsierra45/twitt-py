@@ -6,6 +6,7 @@ import re
 
 from numpy import iterable
 from config import RSA_PUBLIC_KEY_PATH
+from services.auth_service import check_permission
 from services.interceptors import AuthInterceptor, StreamLoggingInterceptor, UnaryLoggingInterceptor
 from interfaces.grpc.proto.posts_pb2 import GetPostResponse, CreatePostResponse, RepostResponse, DeletePostResponse, GetUserPostsResponse
 from interfaces.grpc.proto.posts_pb2_grpc import PostServiceServicer, add_PostServiceServicer_to_server
@@ -27,8 +28,8 @@ class PostService(PostServiceServicer):
 
     def CreatePost(self, request, context):
         user_id = request.user_id
-        # if not self._check_permission(context, user_id):
-        #     context.abort(grpc.StatusCode.PERMISSION_DENIED, "Permission denied")
+        if not check_permission(self.user_persistency, user_id)[0]:
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Permission denied")
 
         content = request.content
         if len(content) > 140:
@@ -51,13 +52,15 @@ class PostService(PostServiceServicer):
 
     def Repost(self, request, context):
         user_id = request.user_id
-        # if not self._check_permission(context, user_id):
-        #     context.abort(grpc.StatusCode.PERMISSION_DENIED, "Permission denied")
+        if not check_permission(self.user_persistency, user_id):
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Permission denied")
         posts, err = self.post_persistency.load_posts_list(user_id)
 
         for post in posts:
             if post.original_post_id == request.original_post_id:
                 context.abort(grpc.StatusCode.INVALID_ARGUMENT, "User already reposted this post")
+            if post.post_id == request.original_post_id:  
+                context.abort(grpc.StatusCode.INVALID_ARGUMENT, "This post is yours")
 
         original_post, err = self.post_persistency.load_post(request.original_post_id)
         if err:
@@ -82,8 +85,8 @@ class PostService(PostServiceServicer):
         if err:
             context.abort(grpc.StatusCode.NOT_FOUND, "Post not found")
 
-        # if not self._check_permission(context, post["user_id"]):
-        #     context.abort(grpc.StatusCode.PERMISSION_DENIED, "Permission denied")
+        if not check_permission(self.user_persistency, post["user_id"]):
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "Permission denied")
 
         err = self.post_persistency.remove_post(post_id)
         if err:
