@@ -44,10 +44,13 @@ class Elector:
     def election_thread(self):
         logging.info("Election requested thread started")
         while not self.node.shutdown_event.is_set():
-            with self.leader_lock:
-                leader_id = self.leader.id
-            if leader_id == self.node.id:
-                self.request_election()
+            try:
+                with self.leader_lock:
+                    leader_id = self.leader.id
+                if leader_id == self.node.id:
+                    self.request_election()
+            except Exception as e:
+                logging.error(f'Error in election thread: {e}')
             time.sleep(60)
 
     def request_election(self):
@@ -78,7 +81,6 @@ class Elector:
 
     def election(self, first_id, leader_ip, leader_port):
         leader = ChordNodeReference(leader_ip, leader_port)
-        first_id = first_id
 
         if self.node.id > leader.id:
             leader = self.node.ref
@@ -90,7 +92,7 @@ class Elector:
             with self.leader_lock:
                 self.leader = leader
 
-            return f'{leader.ip},{leader.port}'
+            return f'{leader.ip}{SEPARATOR}{leader.port}'
 
         ok = succ.ping()
         if not ok:

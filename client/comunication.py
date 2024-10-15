@@ -61,11 +61,11 @@ def is_server_alive(host, port, timeout=1):
         return False
 
 def get_host(service):
-    server = Storage.get('server', default='localhost')
+    server = Storage.get('server', default='0.0.0.0')
 
     if not is_server_alive(server, int(service)):
         update_server()
-        server = Storage.get('server', default='localhost')
+        server = Storage.get('server', default='0.0.0.0')
 
     if server and is_server_alive(server, int(service)):
         return (f"{server}:{service}")

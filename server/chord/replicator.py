@@ -312,6 +312,6 @@ class Replicator:
 
                             self.storage.remove(key, time_c)
             except Exception as e:
-                logging.error(f'Error in storage fix: {e}')
+                logging.error(f'Error in fix storage thread: {e}')
 
             time.sleep(60)

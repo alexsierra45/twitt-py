@@ -65,5 +65,5 @@ class FingerTable:
 
                 self.finger[self.next] = succ
             except Exception as e:
-                logging.error(f"Error in fix_fingers: {e}")
+                logging.error(f"Error in fix fingers thread: {e}")
             time.sleep(10)

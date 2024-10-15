@@ -142,22 +142,25 @@ class Discoverer:
 
     def discover_and_join(self):
         while not self.node.shutdown_event.is_set():
-            with self.elector.leader_lock:
-                leader_id = self.elector.leader.id
-            with self.node.succ_lock: 
-                succ: ChordNodeReference = self.node.successors.get_index(0)
-            with self.node.pred_lock: 
-                pred: ChordNodeReference = self.node.predecessors.get_index(0)
-            alone = succ.id == pred.id and succ.id == self.node.id
+            try:
+                with self.elector.leader_lock:
+                    leader_id = self.elector.leader.id
+                with self.node.succ_lock: 
+                    succ: ChordNodeReference = self.node.successors.get_index(0)
+                with self.node.pred_lock: 
+                    pred: ChordNodeReference = self.node.predecessors.get_index(0)
+                alone = succ.id == pred.id and succ.id == self.node.id
 
-            if leader_id == self.node.id or alone:
-                node_ip, leader_ip, error = self.send_announcement()
-                if error or node_ip == EMPTY:
-                    if error:
-                        logging.error(f'Error in broadcast: {error}')
-                else:
-                    leader = ChordNodeReference(leader_ip)
-                    if leader.id > self.node.id:
-                        if not self.join(node_ip, leader_ip):
-                            logging.error(f'Joining to {node_ip}')
+                if leader_id == self.node.id or alone:
+                    node_ip, leader_ip, error = self.send_announcement()
+                    if error or node_ip == EMPTY:
+                        if error:
+                            logging.error(f'Error in broadcast: {error}')
+                    else:
+                        leader = ChordNodeReference(leader_ip)
+                        if leader.id > self.node.id:
+                            if not self.join(node_ip, leader_ip):
+                                logging.error(f'Joining to {node_ip}')
+            except Exception as e:
+                logging.error(f'Error in discover and join thread: {e}')
             time.sleep(60)
