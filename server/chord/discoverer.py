@@ -3,8 +3,8 @@ import socket
 import time
 
 from chord.node_reference import ChordNodeReference
-from chord.constants import ARE_YOU, EMPTY, FALSE, TRUE, YES_IM
-from config import BROADCAST_LISTEN_PORT, BROADCAST_REQUEST_PORT, PORT
+from chord.constants import ARE_YOU, EMPTY, YES_IM
+from config import BROADCAST_LISTEN_PORT, BROADCAST_REQUEST_PORT, SEPARATOR
 from chord.elector import Elector
 from chord.finger_table import FingerTable
 
@@ -49,7 +49,7 @@ class Discoverer:
         except Exception as e:
             return EMPTY, EMPTY, e
 
-        message = f"{ARE_YOU};{self.node.id}".encode()
+        message = f"{ARE_YOU}{SEPARATOR}{self.node.id}".encode()
         conn.sendto(message, broadcast_addr)
 
         buffer = bytearray(1024)
@@ -59,7 +59,7 @@ class Discoverer:
         for _ in range(timeout):
             try:
                 nn, addr = conn.recvfrom_into(buffer)
-                res = buffer[:nn].decode().split(";")
+                res = buffer[:nn].decode().split(SEPARATOR)
                 message = res[0]
 
                 if message == YES_IM and len(res) == 2:
@@ -100,7 +100,7 @@ class Discoverer:
             if leader_id != self.node.id:
                 continue 
 
-            res = buffer[:nn].decode().split(";")
+            res = buffer[:nn].decode().split(SEPARATOR)
 
             if len(res) != 2:
                 continue
@@ -117,7 +117,7 @@ class Discoverer:
                 with self.elector.leader_lock:
                     leader = self.elector.leader
 
-                response = f"{YES_IM};{leader.ip}".encode()
+                response = f"{YES_IM}{SEPARATOR}{leader.ip}".encode()
                 conn.sendto(response, client_addr)
     
     def create_ring(self):
@@ -142,16 +142,25 @@ class Discoverer:
 
     def discover_and_join(self):
         while not self.node.shutdown_event.is_set():
-            with self.elector.leader_lock:
-                leader_id = self.elector.leader.id
-            if leader_id == self.node.id:
-                node_ip, leader_ip, error = self.send_announcement()
-                if error or node_ip == EMPTY:
-                    if error:
-                        logging.error(f'Error in broadcast: {error}')
-                else:
-                    leader = ChordNodeReference(leader_ip)
-                    if leader.id > self.node.id:
-                        if not self.join(node_ip, leader_ip):
-                            logging.error(f'Joining to {node_ip}')
-            time.sleep(10)
+            try:
+                with self.elector.leader_lock:
+                    leader_id = self.elector.leader.id
+                with self.node.succ_lock: 
+                    succ: ChordNodeReference = self.node.successors.get_index(0)
+                with self.node.pred_lock: 
+                    pred: ChordNodeReference = self.node.predecessors.get_index(0)
+                alone = succ.id == pred.id and succ.id == self.node.id
+
+                if leader_id == self.node.id or alone:
+                    node_ip, leader_ip, error = self.send_announcement()
+                    if error or node_ip == EMPTY:
+                        if error:
+                            logging.error(f'Error in broadcast: {error}')
+                    else:
+                        leader = ChordNodeReference(leader_ip)
+                        if leader.id > self.node.id:
+                            if not self.join(node_ip, leader_ip):
+                                logging.error(f'Joining to {node_ip}')
+            except Exception as e:
+                logging.error(f'Error in discover and join thread: {e}')
+            time.sleep(60)

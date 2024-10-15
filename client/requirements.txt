@@ -1,0 +1,14 @@
+streamlit
+streamlit-option-menu
+bcrypt
+PyJWT
+grpclib
+aiofiles
+psutil
+cryptography
+certifi
+googleapis-common-protos
+grpcio
+grpcio-tools
+protobuf
+filelock

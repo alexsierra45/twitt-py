@@ -13,6 +13,7 @@ from chord.timer import Timer
 from chord.elector import Elector
 from chord.dynamic_list import DynamicList
 from chord.replicator import Replicator
+from config import SEPARATOR
 
 # Class representing a Chord node
 class ChordNode:
@@ -23,10 +24,10 @@ class ChordNode:
         self.ref = ChordNodeReference(self.ip, self.port)
         self.c = c
  
-        self.successors = DynamicList[ChordNodeReference](c)
+        self.successors = DynamicList[ChordNodeReference](c, self.ref)
         self.succ_lock = threading.RLock() 
 
-        self.predecessors = DynamicList[ChordNodeReference](c)
+        self.predecessors = DynamicList[ChordNodeReference](c, self.ref)
         self.pred_lock = threading.RLock()
 
         self.shutdown_event = threading.Event()
@@ -37,7 +38,7 @@ class ChordNode:
         self.timer = Timer(self) # Node clock
         self.elector = Elector(self, self.timer) # Leader regulator
         self.discoverer = Discoverer(self, self.succ_lock, self.pred_lock, self.elector, self.finger) # Chord ring discoverer
-        self.replicator = Replicator(self) # Data replicator
+        self.replicator = Replicator(self, self.timer) # Data replicator
 
         self.discoverer.create_ring_or_join()
 
@@ -46,6 +47,7 @@ class ChordNode:
         threading.Thread(target=self.check_successor, daemon=True).start() # Start check predecessor thread
         threading.Thread(target=self.fix_successors, daemon=True).start() # Start fixing successors
         threading.Thread(target=self.finger.fix_fingers, daemon=True).start() # Start fix fingers thread
+        threading.Thread(target=self.replicator.fix_storage, daemon=True).start() # Start fix storage thread
         threading.Thread(target=self.discoverer.discover_and_join, daemon=True).start() # Start discovering new rings
         threading.Thread(target=self.elector.check_leader, daemon=True).start() # Start check leader thread
         threading.Thread(target=self.discoverer.listen_for_announcements, daemon=True).start() # Start fix fingers thread
@@ -57,26 +59,33 @@ class ChordNode:
         while not self.shutdown_event.is_set():
             try:
                 logging.info('Stabilizing node')
+
                 with self.succ_lock:
                     succ = self.successors.get_index(0)
                 succ_pred = succ.pred
+
                 if (succ.id == self.id and succ_pred.id != self.id) or inbetween(succ_pred.id, self.id, succ.id):
-                    logging.info(f'Notifing {succ_pred}')
+                    logging.info(f'Notifying to {succ_pred}')
                     with self.succ_lock:
                         self.successors.set_index(0, succ_pred)
-                    succ_pred.notify(self.ref)
-                    self.replicator.replicate_all_data(succ_pred)
-                else:
-                    if succ.id != self.id:
-                        succ.notify(self.ref)
+                    if succ_pred.id != self.id:
+                        succ_pred.notify(self.ref)
+                        self.replicator.replicate_all_data(succ_pred)
+
+                if succ.id != self.id:
+                    succ.notify(self.ref)
+                
                 logging.info('Node stabilized')
+
             except Exception as e:
                 logging.error(f"Error in stabilize: {e}")
 
-            with self.succ_lock and self.pred_lock:
+            with self.succ_lock:
                 succ = self.successors.get_index(0)
+            with self.pred_lock:
                 pred = self.predecessors.get_index(0)
-            logging.info(f"successor : {succ} predecessor {pred}")
+            logging.info(f"Successor: {succ}, Predecessor: {pred}")
+
             time.sleep(10)
 
     # Notify method to inform the node about another node
@@ -85,53 +94,61 @@ class ChordNode:
             pred = self.predecessors.get_index(0)
             if pred.id == self.id or inbetween(node.id, pred.id, self.id):
                 logging.info(f'Notify from {node.id}')
-                if pred.id == self.id:
-                    self.predecessors.remove_index(0)
-                self.predecessors.set_index(0, node)
+                with self.pred_lock:
+                    if pred.id == self.id:
+                        self.predecessors.remove_index(0)
+                    self.predecessors.set_index(0, node)
 
-                # new predecessor storage
-                # n.newPredecessorStorage()
+                self.replicator.new_predecessor_storage()
+                return TRUE
             else:
                 logging.info(f'No update needed for node {node.id}')
+                return FALSE
 
     # Check successor method to periodically verify if the successor is alive
     def check_successor(self):
         while True:
-            with self.succ_lock:
-                succ = self.successors.get_index(0)
-            if succ.id != self.id:
-                logging.info(f'Check successor {succ.id}')
-                ok = succ.ping()
-                if not ok:
-                    logging.info(f'Successor {succ.id} has failed')
-                    with self.succ_lock:
-                        succs_len = len(self.successors)
-                        if succs_len == 1:
-                            self.successors.remove_index(0)
-                            self.successors.set_index(0, self.ref)
-                        else:
-                            self.successors.remove_index(0)
+            try:
+                with self.succ_lock:
+                    succ = self.successors.get_index(0)
+                if succ.id != self.id:
+                    logging.info(f'Check successor {succ.id}')
+                    ok = succ.ping()
+                    if not ok:
+                        logging.info(f'Successor {succ.id} has failed')
+                        with self.succ_lock:
+                            succs_len = len(self.successors)
+                            if succs_len == 1:
+                                self.successors.remove_index(0)
+                                self.successors.set_index(0, self.ref)
+                            else:
+                                self.successors.remove_index(0)
+            except Exception as e:
+                logging.error(f'Error in check successor thread: {e}')
             time.sleep(10)
 
     # Check predecessor method to periodically verify if the predecessor is alive
     def check_predecessor(self):
         while True:
-            with self.pred_lock:
-                pred = self.predecessors.get_index(0)
-            if pred and pred.id != self.id:
-                logging.info(f'Check predecessor {pred.id}')
-                ok = pred.ping()
-                if not ok:
-                    logging.info(f'Predecessor {pred.id} has failed')
-                    with self.pred_lock:
-                        preds_len = len(self.predecessors)
-                        if preds_len == 1:
-                            self.predecessors.remove_index(0)
-                            self.predecessors.set_index(0, self.ref)
-                        else:
-                            self.predecessors.remove_index(0)
+            try:
+                with self.pred_lock:
+                    pred = self.predecessors.get_index(0)
+                if pred and pred.id != self.id:
+                    logging.info(f'Check predecessor {pred.id}')
+                    ok = pred.ping()
+                    if not ok:
+                        logging.info(f'Predecessor {pred.id} has failed')
+                        with self.pred_lock:
+                            preds_len = len(self.predecessors)
+                            if preds_len == 1:
+                                self.predecessors.remove_index(0)
+                                self.predecessors.set_index(0, self.ref)
+                            else:
+                                self.predecessors.remove_index(0)
 
-                    self.replicator.fail_predecessor_storage()
+                        # self.replicator.fail_predecessor_storage()
+            except Exception as e:
+                logging.error(f'Error in check predecessor thread: {e}')
             time.sleep(10)
 
     def get_successor_and_notify(self, index, ip):
@@ -152,10 +169,13 @@ class ChordNode:
 
         next = 0
         while not self.shutdown_event.is_set():
-            succ = self.successors.get_index(0)
-            if succ.id == self.id:
-                continue
-            next = self.fix_successor(next)
+            try:
+                succ = self.successors.get_index(0)
+                if succ.id == self.id:
+                    continue
+                next = self.fix_successor(next)
+            except Exception as e:
+                logging.error(f'Error in fix successors thread: {e}')
             time.sleep(15)
 
     def fix_successor(self, index: int) -> int:
@@ -186,8 +206,11 @@ class ChordNode:
             try:
                 succ = succ.get_successor_and_notify(index, self.ip)
                 if succ.id == self.id or index == self.c - 1:
-                    return 0
-                
+                    # if succs_len > 1:
+                    #     succ = self.successors.get_index(0)
+                    # else:
+                        return 0
+
                 if index == succs_len - 1:
                     self.successors.set_index(index + 1, succ)
                     self.replicator.replicate_all_data(succ)
@@ -198,11 +221,12 @@ class ChordNode:
                     self.successors.set_index(index + 1, succ)
 
                     find = False
-                    for _ in range(len(self.successors)):
-                        if succ.id == self.successors.get_index(index).id:
+                    for i in range(len(self.successors)):
+                        if succ.id == self.successors.get_index(i).id:
                             find = True
 
                     if find:
+                        pass
                         self.replicator.replicate_all_data(succ)
 
                 return (index + 1) % len(self.successors)
@@ -262,72 +286,80 @@ class ChordNode:
             s.listen(10)
 
             while True:
-                conn, addr = s.accept()
+                try:
+                    conn, addr = s.accept()
 
-                data = conn.recv(1024).decode().split(',')
+                    data = conn.recv(1024).decode().split(SEPARATOR)
 
-                data_resp = None
-                option = int(data[0])
+                    data_resp = None
+                    option = int(data[0])
 
-                logging.info(f'New connection from {addr}, operation {option}')
+                    logging.info(f'New connection from {addr}, operation {option}')
 
-                server_response = ''
+                    server_response = ''
 
-                if option == FIND_SUCCESSOR:
-                    id = int(data[1])
-                    data_resp = self.finger.find_succ(id)
-                elif option == FIND_PREDECESSOR:
-                    id = int(data[1])
-                    pred = self.finger.find_pred(id)
-                    data_resp = pred if pred else self.ref
-                elif option == GET_SUCCESSOR:
-                    succ = self.successors.get_index(0)
-                    data_resp = succ if succ else self.ref
-                elif option == GET_PREDECESSOR:
-                    pred = self.predecessors.get_index(0)
-                    data_resp = pred if pred else self.ref
-                elif option == NOTIFY:
-                    ip, port = data[1], int(data[2])
-                    self.notify(ChordNodeReference(ip, port))
-                elif option == CHECK_PREDECESSOR:
-                    pass
-                elif option == CLOSEST_PRECEDING_FINGER:
-                    id = int(data[1])
-                    data_resp = self.finger.closest_preceding_finger(id)
-                elif option == STORE_KEY:
-                    key = data[1]
-                    value, version = data[2], int(data[3])
-                    rep = True if int(data[4]) == TRUE else False
-                    server_response = self.replicator.set(key, Data(value, version), rep)
-                elif option == RETRIEVE_KEY:
-                    key = data[1]
-                    server_response = self.replicator.get(key)
-                elif option == DELETE_KEY:
-                    key, time = data[1], data[2]
-                    rep = True if int(data[3]) == TRUE else False
-                    server_response = self.replicator.remove(key, time, rep)
-                elif option == PING:
-                    server_response = ALIVE
-                elif option == PING_LEADER:
-                    id, time = int(data[1]), int(data[2])
-                    server_response = self.elector.ping_leader(id, time)
-                elif option == ELECTION:
-                    id, ip, port = int(data[1]), data[2], int(data[3])
-                    server_response = self.elector.election(id, ip, port)
-                elif option == GET_SUCCESSOR_AND_NOTIFY:
-                    index, ip = int(data[1]), data[2]
-                    data_resp = self.get_successor_and_notify(index, ip)
-                elif option == SET_PARTITION:
-                    dict = decode_dict(data[1])
-                    version = decode_dict(data[2])
-                    removed_dict = decode_dict(data[3])
-                    server_response = self.replicator.set_partition(dict, version, removed_dict)
+                    if option == FIND_SUCCESSOR:
+                        id = int(data[1])
+                        data_resp = self.finger.find_succ(id)
+                    elif option == FIND_PREDECESSOR:
+                        id = int(data[1])
+                        pred = self.finger.find_pred(id)
+                        data_resp = pred if pred else self.ref
+                    elif option == GET_SUCCESSOR:
+                        succ = self.successors.get_index(0)
+                        data_resp = succ if succ else self.ref
+                    elif option == GET_PREDECESSOR:
+                        pred = self.predecessors.get_index(0)
+                        data_resp = pred if pred else self.ref
+                    elif option == NOTIFY:
+                        ip, port = data[1], int(data[2])
+                        self.notify(ChordNodeReference(ip, port))
+                    elif option == CHECK_PREDECESSOR:
+                        pass
+                    elif option == CLOSEST_PRECEDING_FINGER:
+                        id = int(data[1])
+                        data_resp = self.finger.closest_preceding_finger(id)
+                    elif option == STORE_KEY:
+                        key = data[1]
+                        value, version = data[2], int(data[3])
+                        rep = True if int(data[4]) == TRUE else False
+                        server_response = self.replicator.set(key, Data(value, version), rep)
+                    elif option == RETRIEVE_KEY:
+                        key = data[1]
+                        server_response = self.replicator.get(key)
+                    elif option == DELETE_KEY:
+                        key, time = data[1], data[2]
+                        rep = True if int(data[3]) == TRUE else False
+                        server_response = self.replicator.remove(key, time, rep)
+                    elif option == PING:
+                        server_response = ALIVE
+                    elif option == PING_LEADER:
+                        id, time = int(data[1]), int(data[2])
+                        server_response = self.elector.ping_leader(id, time)
+                    elif option == ELECTION:
+                        id, ip, port = int(data[1]), data[2], int(data[3])
+                        server_response = self.elector.election(id, ip, port)
+                    elif option == GET_SUCCESSOR_AND_NOTIFY:
+                        index, ip = int(data[1]), data[2]
+                        data_resp = self.get_successor_and_notify(index, ip)
+                    elif option == SET_PARTITION:
+                        dict = decode_dict(data[1])
+                        version = decode_dict(data[2])
+                        removed_dict = decode_dict(data[3])
+                        server_response = self.replicator.set_partition(dict, version, removed_dict)
+                    elif option == RESOLVE_DATA:
+                        dict = decode_dict(data[1])
+                        version = decode_dict(data[2])
+                        removed_dict = decode_dict(data[3])
+                        server_response = self.replicator.resolve_data(dict, version, removed_dict)
 
-                response = None
-                if data_resp:
-                    response = f'{data_resp.id},{data_resp.ip}'.encode()
-                else:
-                    response = f'{server_response}'.encode()
+                    response = None
+                    if data_resp:
+                        response = f'{data_resp.id}{SEPARATOR}{data_resp.ip}'.encode()
+                    else:
+                        response = f'{server_response}'.encode()
 
-                conn.sendall(response)
-                conn.close()
+                    conn.sendall(response)
+                    conn.close()
+                except Exception as e:
+                    logging.error(f'Error in main thread: {e}')

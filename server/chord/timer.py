@@ -25,7 +25,10 @@ class Timer:
     def update_time(self):
         logging.info("Update time thread started")
         while not self.node.shutdown_event.is_set():
-            with self.time_lock:
-                self.time_counter += 1
-                self.node_timers[self.node.id] += 1
+            try: 
+                with self.time_lock:
+                    self.time_counter += 1
+                    self.node_timers[self.node.id] += 1
+            except Exception as e:
+                logging.error(f'Error in update time thread: {e}')
             time.sleep(1)

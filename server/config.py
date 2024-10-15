@@ -1,8 +1,10 @@
-RSA_PRIVATE_KEY_PATH = 'server/keys/pv.pem'
-RSA_PUBLIC_KEY_PATH = 'server/keys/pub.pem'
+RSA_PRIVATE_KEY_PATH = 'keys/pv.pem'
+RSA_PUBLIC_KEY_PATH = 'keys/pub.pem'
 PASSWORD = 'alex'
 
 NETWORK = 'TCP'
 PORT = 10000
 BROADCAST_LISTEN_PORT = 11000
 BROADCAST_REQUEST_PORT = 12000
+
+SEPARATOR = ';'

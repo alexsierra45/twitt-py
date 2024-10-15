@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package twittpy;
+
+import "proto/models.proto";
+
+service UserService{
+    // Get a user
+    rpc GetUser(GetUserRequest) returns (GetUserResponse){}
+
+    // Edit user's account
+    rpc EditUser(EditUserRequest) returns (EditUserResponse){}
+}
+
+message GetUserRequest {
+    string username = 1;
+}
+
+message GetUserResponse {
+    User user = 1;
+}
+
+message EditUserRequest {
+    User user = 1;
+}
+
+message EditUserResponse {
+}

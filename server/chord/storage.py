@@ -10,6 +10,12 @@ class Data:
     def is_empty(self) -> bool:
         return self.value == ''
     
+    def __str__(self) -> str:
+        return f'{self.value},{self.version},{self.active}'
+    
+    def __repr__(self) -> str:
+        return f'Data(value={self.value}, version={self.version}, active={self.active})'
+    
 class DefaultData(Data):
     def __init__(self) -> None:
         super().__init__('', 0)
@@ -17,6 +23,7 @@ class DefaultData(Data):
 class Storage:
     def __init__(self) -> None:
         self.storage_lock = threading.RLock()
+        self.storage = None
         
     def get(self, key: str) -> Tuple[Data, bool]:
         pass
@@ -33,7 +40,7 @@ class Storage:
     def set_all(self, dict: Dict[str, Data]) -> bool:
         pass
 
-    def remove(self, key, time) -> bool:
+    def remove(self, key, time, rep: bool = True) -> bool:
         pass
 
     def remove_all(self, dict: Dict[str, int]) -> bool:
@@ -53,9 +60,10 @@ class RAMStorage(Storage):
         self.storage[key] = data
         return True
     
-    def remove(self, key: str, time: int) -> bool:
+    def remove(self, key: str, time: int, rep: bool = True) -> bool:
         data = self.storage[key]
-        data.active = False
+        if rep:
+            data.active = False
         data.version = time
         self.storage[key] = data
         return True

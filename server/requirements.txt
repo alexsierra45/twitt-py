@@ -4,3 +4,4 @@ protobuf
 PyJWT
 cryptography
 grpc_interceptor
+numpy

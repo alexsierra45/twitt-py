@@ -1,0 +1,24 @@
+syntax = "proto3";
+package twittpy;
+
+import "models.proto";
+
+service Auth {
+    rpc SignUp (SignUpRequest) returns (SignUpResponse);
+    rpc Login (LoginRequest) returns (LoginResponse);
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string token = 1;
+}
+
+message SignUpRequest {
+  User user = 1;
+}
+
+message SignUpResponse {}

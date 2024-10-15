@@ -28,7 +28,7 @@ class AuthService(AuthServicer):
             else:
                 context.abort(err, "Something went wrong")
             
-        if not user or not verify_password(user.user_password, password):
+        if not user or not verify_password(user.password_hash, password):
             context.abort(grpc.StatusCode.PERMISSION_DENIED, "Wrong username or password")
 
         token = self.generate_token(user)
@@ -93,3 +93,6 @@ def load_private_key():
             backend=default_backend()
         )
     return private_key
+
+def check_permission(user_persistency, user_id):
+    return user_persistency.exists_user(user_id)

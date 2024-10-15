@@ -1,3 +1,11 @@
+import threading
+from chord.node import ChordNode
+from persistency.user import UserPersitency
+from persistency.follow import FollowsPersitency
+from persistency.post import PostPersitency
+from services.follow_service import start_follow_service
+from services.post_service import start_post_service
+from services.users_service import start_user_service
 import socket
 import sys
 from chord.node import ChordNode
@@ -14,6 +22,11 @@ def start():
         other_ip = sys.argv[1]
         node.join(ChordNodeReference(other_ip, node.port))
 
-    user_persitency = UserPersitency(node)
+    user_persistency = UserPersitency(node)
+    post_persistency = PostPersitency(node)
+    follow_persistency = FollowsPersitency(node)
 
-    start_auth_service(NETWORK, "0.0.0.0:6000", user_persitency)
+    threading.Thread(target=start_auth_service, args=(NETWORK, "0.0.0.0:50000", user_persistency)).start()
+    threading.Thread(target=start_user_service, args=(NETWORK, "0.0.0.0:50001", user_persistency)).start()
+    threading.Thread(target=start_post_service, args=(NETWORK, "0.0.0.0:50002", user_persistency, post_persistency)).start()
+    threading.Thread(target=start_follow_service, args=(NETWORK, "0.0.0.0:50003", user_persistency, follow_persistency)).start()
