@@ -13,7 +13,6 @@ def follow_user(user_id, target_user_id, token):
     request = follow_pb2.FollowUserRequest(user_id=user_id, target_user_id=target_user_id)
     try:
         response = follow_stub.FollowUser(request)
-        # print(response)
         return True
     except grpc.RpcError as error:
         logger.error(f"An error occurred following the user: {error.code()}: {error.details()}")
@@ -26,7 +25,6 @@ def unfollow_user(user_id, target_user_id, token):
     request = follow_pb2.UnfollowUserRequest(user_id=user_id, target_user_id=target_user_id)
     try:
         response = follow_stub.UnfollowUser(request)
-        # print(response)
         return True
     except grpc.RpcError as error:
         logger.error(f"An error occurred unfollowing the user: {error.code()}: {error.details()}")
@@ -44,7 +42,6 @@ async def get_following(user_id, token, request = False):
     request = follow_pb2.GetFollowingRequest(user_id=user_id)
     try:
         response = follow_stub.GetFollowing(request)
-        # print(response)
         following_usernames = [username for username in response.following_usernames]
         await Storage.async_disk_store(f"{user_id}_following", following_usernames)
         return response.following_usernames

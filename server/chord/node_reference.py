@@ -24,7 +24,7 @@ class ChordNodeReference:
                 return s.recv(1024)
         except Exception as e:
             logging.error(f"Error sending data to {self.ip}: {e}, operation: {op}, data: {data}")
-            traceback.print_exc()
+            # traceback.print_exc()
             return b''
 
     # Method to find the successor of a given id
@@ -65,7 +65,6 @@ class ChordNodeReference:
     # Method to retrieve a value for a given key from the current node
     def retrieve_key(self, key: str) -> Data:
         response = self._send_data(RETRIEVE_KEY, key).decode().split(SEPARATOR)
-        print(response)
         return Data(response[0], int(response[1]))
     
     # Method to store a key-value pair in the current node

@@ -47,7 +47,6 @@ class PostPersitency:
             list = user_posts.posts_ids
 
         list.append(post_id)
-        print(list)
         err = save(self.node, UserPosts(posts_ids = list), path)
 
         if err:
@@ -73,7 +72,6 @@ class PostPersitency:
     def load_posts_list(self, username):
         path = os.path.join("User", username.lower(), "Posts")
         user_posts, err = load(self.node, path, UserPosts())
-        print (user_posts)
         list = []
 
         if err == grpc.StatusCode.NOT_FOUND:

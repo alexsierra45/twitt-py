@@ -28,7 +28,6 @@ class AuthService(AuthServicer):
             else:
                 context.abort(err, "Something went wrong")
             
-        print(user)
         if not user or not verify_password(user.password_hash, password):
             context.abort(grpc.StatusCode.PERMISSION_DENIED, "Wrong username or password")
 

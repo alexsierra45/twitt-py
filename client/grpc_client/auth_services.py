@@ -13,7 +13,6 @@ def sign_up(email, username, name, password):
     request = auth_pb2.SignUpRequest(user=user)
     try:
         response = auth_stub.SignUp(request)
-        # print(response)
         return True
     except grpc.RpcError as error:
         logger.error(f"An error occurred creating the user: {error.code()}: {error.details()}")
@@ -26,7 +25,6 @@ def login(username, password):
     request = auth_pb2.LoginRequest(username=username, password=password)
     try:
         response = auth_stub.Login(request)
-        # print(response)
         return response.token
     except grpc.RpcError as error:
         logger.error(f"An error occurred logging in: {error.code()}: {error.details()}")

@@ -13,7 +13,6 @@ def create_post(user_id, content, token):
     request = posts_service_pb2.CreatePostRequest(user_id=user_id, content=content)
     try:
         response = post_stub.CreatePost(request)
-        # print(response)
         return True
     except grpc.RpcError as error:
         logger.error(f"An error occurred creating the post: {error.code()}: {error.details()}")
@@ -26,7 +25,6 @@ def get_post(post_id, token):
     request = posts_service_pb2.GetPostRequest(post_id=post_id)
     try:
         response = post_stub.GetPost(request)
-        # print(response)
         return response.post
     except grpc.RpcError as error:
         logger.error(f"An error occurred fetching the post: {error.code()}: {error.details()}")
@@ -39,7 +37,6 @@ def delete_post(post_id, token):
     request = posts_service_pb2.DeletePostRequest(post_id=post_id)
     try:
         response = post_stub.DeletePost(request)
-        # print(response)
         return True
     except grpc.RpcError as error:
         logger.error(f"An error occurred deleting the post: {error.code()}: {error.details()}")
@@ -52,7 +49,6 @@ def repost(user_id, original_post_id, token):
     request = posts_service_pb2.RepostRequest(user_id=user_id, original_post_id=original_post_id)
     try:
         response = post_stub.Repost(request)
-        # print(response)
         return True
     except grpc.RpcError as error:
         logger.error(f"An error occurred reposting: {error.code()}: {error.details()}")
@@ -62,7 +58,6 @@ async def get_user_posts(user_id, token, request = False):
     if not request:
         cached_posts = await Storage.async_disk_get(f"{user_id}_posts", default=None)
         if cached_posts is not None:
-            # print (cached_posts)
             value = [models_pb2.Post.FromString(v) for v in cached_posts]
             return value
         

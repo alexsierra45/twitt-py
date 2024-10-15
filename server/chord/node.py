@@ -197,8 +197,6 @@ class ChordNode:
         if succ.id == self.id and succs_len == 1:
             return 0
         
-        print(f'Aqui sucesor {succ}')
-        
         if succs_len != 1 and last.id == self.id:
             with self.succ_lock:
                 succs_len -= 1
@@ -350,12 +348,10 @@ class ChordNode:
                         removed_dict = decode_dict(data[3])
                         server_response = self.replicator.set_partition(dict, version, removed_dict)
                     elif option == RESOLVE_DATA:
-                        print(data)
                         dict = decode_dict(data[1])
                         version = decode_dict(data[2])
                         removed_dict = decode_dict(data[3])
                         server_response = self.replicator.resolve_data(dict, version, removed_dict)
-                        print(server_response)
 
                     response = None
                     if data_resp:

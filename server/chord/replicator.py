@@ -175,7 +175,6 @@ class Replicator:
 
     def resolve_data(self, dict: Dict[str, str], version: Dict[str, int], removed_dict: Dict[str, int]) -> str:
         logging.info('Resolving data versions')
-        print(dict)
 
         new_dict: Dict[str, Data] = {}
         res_dict_value: Dict[str, str] = {}
@@ -284,7 +283,6 @@ class Replicator:
                 with self.storage.storage_lock:
                     dict, _ = self.storage.get_all()
                     logging.info(f'Data storage len: {len(dict)}')
-                    print(self.storage.storage)
 
                 with self.node.succ_lock:
                     succ_len = len(self.node.successors)
@@ -305,12 +303,11 @@ class Replicator:
                     if pred_pred.id != self.node.id and pred_pred.id != pred.id:
                         with self.timer.time_lock:
                             time_c = self.timer.time_counter
-                        print(pred_pred.id)
                         for key in dict.keys():
                             if inbetween(getShaRepr(key), pred_pred.id, self.node.id):
                                 continue
 
-                            self.storage.remove(key, time_c)
+                            # self.storage.remove(key, time_c)
             except Exception as e:
                 logging.error(f'Error in fix storage thread: {e}')
 

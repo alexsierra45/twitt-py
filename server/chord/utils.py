@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 
 # Function to hash a string using SHA-1 and return its integer representation
 def getShaRepr(data: str):
@@ -17,7 +18,7 @@ def code_dict(d):
         clean_dict = {k.strip(): v for k, v in d.items()}
         return json.dumps(clean_dict)
     except (TypeError, ValueError) as e:
-        print(f"Error coding dictionary: {e}")
+        logging.error(f"Error coding dictionary: {e}")
         return ''
 
     
@@ -25,5 +26,5 @@ def decode_dict(dict):
     try:
         return json.loads(dict)
     except (TypeError, ValueError) as e:
-        print(f"Error decoding json string: {e}")
+        logging.error(f"Error decoding json string: {e}")
         return {}

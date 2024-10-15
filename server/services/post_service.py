@@ -106,7 +106,6 @@ class PostService(PostServiceServicer):
         if err:
             context.abort(grpc.StatusCode.INTERNAL, "Failed to load user posts")
 
-        print(posts)
         return GetUserPostsResponse(posts=posts)
 
 

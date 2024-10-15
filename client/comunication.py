@@ -9,7 +9,6 @@ from utils import ARE_YOU, BROADCAST_PORT, BROADCAST_REQUEST_PORT, YES_IM, AuthI
 def update_server():
     server = discover()
     if server:
-        print("encontre algo")
         Storage.store('server', server)
     else:
         logger.info("No servers found")
