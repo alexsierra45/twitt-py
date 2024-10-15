@@ -26,13 +26,6 @@ def start():
     post_persistency = PostPersitency(node)
     follow_persistency = FollowsPersitency(node)
 
-# threading.Thread(target=self.stabilize, daemon=True).start()
-    # start_auth_service(NETWORK, "localhost:50000", user_persitency)
-    # start_user_service(NETWORK, "localhost:50001", user_persitency)
-    # start_post_service(NETWORK, "localhost:50002", user_persitency, post_persistency)
-    # start_follow_service(NETWORK, "localhost:50003", user_persitency, follow_persistency)
-
-
     threading.Thread(target=start_auth_service, args=(NETWORK, "0.0.0.0:50000", user_persistency)).start()
     threading.Thread(target=start_user_service, args=(NETWORK, "0.0.0.0:50001", user_persistency)).start()
     threading.Thread(target=start_post_service, args=(NETWORK, "0.0.0.0:50002", user_persistency, post_persistency)).start()

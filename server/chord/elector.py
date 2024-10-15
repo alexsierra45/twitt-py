@@ -3,6 +3,7 @@ import threading
 import time
 from chord.timer import Timer
 from chord.node_reference import ChordNodeReference
+from config import SEPARATOR
 
 class Elector:
     def __init__(self, node, timer: Timer) -> None:
@@ -105,4 +106,4 @@ class Elector:
         with self.leader_lock:
             self.leader = leader
 
-        return f'{leader.ip},{leader.port}'
+        return f'{leader.ip}{SEPARATOR}{leader.port}'

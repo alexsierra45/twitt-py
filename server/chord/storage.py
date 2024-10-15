@@ -10,6 +10,12 @@ class Data:
     def is_empty(self) -> bool:
         return self.value == ''
     
+    def __str__(self) -> str:
+        return f'{self.value},{self.version},{self.active}'
+    
+    def __repr__(self) -> str:
+        return f'Data(value={self.value}, version={self.version}, active={self.active})'
+    
 class DefaultData(Data):
     def __init__(self) -> None:
         super().__init__('', 0)
@@ -17,6 +23,7 @@ class DefaultData(Data):
 class Storage:
     def __init__(self) -> None:
         self.storage_lock = threading.RLock()
+        self.storage = None
         
     def get(self, key: str) -> Tuple[Data, bool]:
         pass

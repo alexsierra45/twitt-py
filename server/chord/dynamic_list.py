@@ -3,12 +3,16 @@ from typing import Generic, List, TypeVar
 T = TypeVar('T')
 
 class DynamicList(Generic[T]):
-    def __init__(self, capacity: int):
+    def __init__(self, capacity: int, default: T):
         self.capacity = capacity
         self.list: List[T] = []
+        self.default = default
 
     def get_index(self, index: int) -> T:
-        return self.list[index]
+        try:
+            return self.list[index]
+        except:
+            return self.default
 
     def set_index(self, index: int, value: T):
         new_list = self.list[:index] + [value] + self.list[index:]

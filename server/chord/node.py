@@ -13,6 +13,7 @@ from chord.timer import Timer
 from chord.elector import Elector
 from chord.dynamic_list import DynamicList
 from chord.replicator import Replicator
+from config import SEPARATOR
 
 # Class representing a Chord node
 class ChordNode:
@@ -23,10 +24,10 @@ class ChordNode:
         self.ref = ChordNodeReference(self.ip, self.port)
         self.c = c
  
-        self.successors = DynamicList[ChordNodeReference](c)
+        self.successors = DynamicList[ChordNodeReference](c, self.ref)
         self.succ_lock = threading.RLock() 
 
-        self.predecessors = DynamicList[ChordNodeReference](c)
+        self.predecessors = DynamicList[ChordNodeReference](c, self.ref)
         self.pred_lock = threading.RLock()
 
         self.shutdown_event = threading.Event()
@@ -37,7 +38,7 @@ class ChordNode:
         self.timer = Timer(self) # Node clock
         self.elector = Elector(self, self.timer) # Leader regulator
         self.discoverer = Discoverer(self, self.succ_lock, self.pred_lock, self.elector, self.finger) # Chord ring discoverer
-        self.replicator = Replicator(self) # Data replicator
+        self.replicator = Replicator(self, self.timer) # Data replicator
 
         self.discoverer.create_ring_or_join()
 
@@ -46,6 +47,7 @@ class ChordNode:
         threading.Thread(target=self.check_successor, daemon=True).start() # Start check predecessor thread
         threading.Thread(target=self.fix_successors, daemon=True).start() # Start fixing successors
         threading.Thread(target=self.finger.fix_fingers, daemon=True).start() # Start fix fingers thread
+        threading.Thread(target=self.replicator.fix_storage, daemon=True).start() # Start fix storage thread
         threading.Thread(target=self.discoverer.discover_and_join, daemon=True).start() # Start discovering new rings
         threading.Thread(target=self.elector.check_leader, daemon=True).start() # Start check leader thread
         threading.Thread(target=self.discoverer.listen_for_announcements, daemon=True).start() # Start fix fingers thread
@@ -57,26 +59,33 @@ class ChordNode:
         while not self.shutdown_event.is_set():
             try:
                 logging.info('Stabilizing node')
+
                 with self.succ_lock:
                     succ = self.successors.get_index(0)
                 succ_pred = succ.pred
+
                 if (succ.id == self.id and succ_pred.id != self.id) or inbetween(succ_pred.id, self.id, succ.id):
-                    logging.info(f'Notifing {succ_pred}')
+                    logging.info(f'Notifying to {succ_pred}')
                     with self.succ_lock:
                         self.successors.set_index(0, succ_pred)
-                    succ_pred.notify(self.ref)
-                    self.replicator.replicate_all_data(succ_pred)
-                else:
-                    if succ.id != self.id:
-                        succ.notify(self.ref)
+                    if succ_pred.id != self.id:
+                        succ_pred.notify(self.ref)
+                        self.replicator.replicate_all_data(succ_pred)
+
+                if succ.id != self.id:
+                    succ.notify(self.ref)
+                
                 logging.info('Node stabilized')
+
             except Exception as e:
                 logging.error(f"Error in stabilize: {e}")
 
-            with self.succ_lock and self.pred_lock:
+            with self.succ_lock:
                 succ = self.successors.get_index(0)
+            with self.pred_lock:
                 pred = self.predecessors.get_index(0)
-            logging.info(f"successor : {succ} predecessor {pred}")
+            logging.info(f"Successor: {succ}, Predecessor: {pred}")
+
             time.sleep(10)
 
     # Notify method to inform the node about another node
@@ -85,14 +94,16 @@ class ChordNode:
             pred = self.predecessors.get_index(0)
             if pred.id == self.id or inbetween(node.id, pred.id, self.id):
                 logging.info(f'Notify from {node.id}')
-                if pred.id == self.id:
-                    self.predecessors.remove_index(0)
-                self.predecessors.set_index(0, node)
+                with self.pred_lock:
+                    if pred.id == self.id:
+                        self.predecessors.remove_index(0)
+                    self.predecessors.set_index(0, node)
 
-                # new predecessor storage
-                # n.newPredecessorStorage()
+                self.replicator.new_predecessor_storage()
+                return TRUE
             else:
                 logging.info(f'No update needed for node {node.id}')
+                return FALSE
 
     # Check successor method to periodically verify if the successor is alive
     def check_successor(self):
@@ -177,6 +188,8 @@ class ChordNode:
         if succ.id == self.id and succs_len == 1:
             return 0
         
+        print(f'Aqui sucesor {succ}')
+        
         if succs_len != 1 and last.id == self.id:
             with self.succ_lock:
                 succs_len -= 1
@@ -186,8 +199,11 @@ class ChordNode:
             try:
                 succ = succ.get_successor_and_notify(index, self.ip)
                 if succ.id == self.id or index == self.c - 1:
-                    return 0
-                
+                    # if succs_len > 1:
+                    #     succ = self.successors.get_index(0)
+                    # else:
+                        return 0
+
                 if index == succs_len - 1:
                     self.successors.set_index(index + 1, succ)
                     self.replicator.replicate_all_data(succ)
@@ -198,8 +214,8 @@ class ChordNode:
                     self.successors.set_index(index + 1, succ)
 
                     find = False
-                    for _ in range(len(self.successors)):
-                        if succ.id == self.successors.get_index(index).id:
+                    for i in range(len(self.successors)):
+                        if succ.id == self.successors.get_index(i).id:
                             find = True
 
                     if find:
@@ -264,7 +280,7 @@ class ChordNode:
             while True:
                 conn, addr = s.accept()
 
-                data = conn.recv(1024).decode().split(',')
+                data = conn.recv(1024).decode().split(SEPARATOR)
 
                 data_resp = None
                 option = int(data[0])
@@ -322,10 +338,17 @@ class ChordNode:
                     version = decode_dict(data[2])
                     removed_dict = decode_dict(data[3])
                     server_response = self.replicator.set_partition(dict, version, removed_dict)
+                elif option == RESOLVE_DATA:
+                    print(data)
+                    dict = decode_dict(data[1])
+                    version = decode_dict(data[2])
+                    removed_dict = decode_dict(data[3])
+                    server_response = self.replicator.resolve_data(dict, version, removed_dict)
+                    print(server_response)
 
                 response = None
                 if data_resp:
-                    response = f'{data_resp.id},{data_resp.ip}'.encode()
+                    response = f'{data_resp.id}{SEPARATOR}{data_resp.ip}'.encode()
                 else:
                     response = f'{server_response}'.encode()
 
