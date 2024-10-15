@@ -40,7 +40,7 @@ class Storage:
     def set_all(self, dict: Dict[str, Data]) -> bool:
         pass
 
-    def remove(self, key, time) -> bool:
+    def remove(self, key, time, rep: bool = True) -> bool:
         pass
 
     def remove_all(self, dict: Dict[str, int]) -> bool:
@@ -60,9 +60,10 @@ class RAMStorage(Storage):
         self.storage[key] = data
         return True
     
-    def remove(self, key: str, time: int) -> bool:
+    def remove(self, key: str, time: int, rep: bool = True) -> bool:
         data = self.storage[key]
-        data.active = False
+        if rep:
+            data.active = False
         data.version = time
         self.storage[key] = data
         return True

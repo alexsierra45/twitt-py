@@ -307,7 +307,7 @@ class Replicator:
                             if inbetween(getShaRepr(key), pred_pred.id, self.node.id):
                                 continue
 
-                            # self.storage.remove(key, time_c)
+                            self.storage.remove(key, time_c, False)
             except Exception as e:
                 logging.error(f'Error in fix storage thread: {e}')
 
