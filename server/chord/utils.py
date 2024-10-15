@@ -1,7 +1,5 @@
 import hashlib
 import json
-import logging
-import time
 
 # Function to hash a string using SHA-1 and return its integer representation
 def getShaRepr(data: str):
@@ -14,12 +12,14 @@ def inbetween(k: int, start: int, end: int) -> bool:
     else:  # The interval wraps around 0
         return start < k or k <= end
     
-def code_dict(dict) -> str:
+def code_dict(d):
     try:
-        return json.dumps(dict)
+        clean_dict = {k.strip(): v for k, v in d.items()}
+        return json.dumps(clean_dict)
     except (TypeError, ValueError) as e:
         print(f"Error coding dictionary: {e}")
         return ''
+
     
 def decode_dict(dict):
     try:

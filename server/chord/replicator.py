@@ -1,15 +1,19 @@
 import logging
+import time
 from typing import Dict
 from chord.storage import Data, DefaultData, RAMStorage, Storage
 from chord.node_reference import ChordNodeReference
 from chord.constants import FALSE, TRUE
 from chord.dynamic_list import DynamicList
 from chord.utils import code_dict, decode_dict, getShaRepr, inbetween
+from chord.timer import Timer
+from config import SEPARATOR
 
 
 class Replicator:
-    def __init__(self, node) -> None:
+    def __init__(self, node, timer: Timer) -> None:
         self.node = node
+        self.timer = timer
         self.storage: Storage = RAMStorage() # Dictionary to store key-value pairs
 
     def get(self, key: str) -> str:
@@ -18,9 +22,10 @@ class Replicator:
             if error:
                 data = DefaultData()
             
-            return f'{data.value},{data.version}'
+            return f'{data.value}{SEPARATOR}{data.version}'
         
     def set(self, key: str, data: Data, rep: bool) -> str:
+        logging.info(f'Saving key {key}')
         with self.storage.storage_lock:
             self.storage.set(key, data)
 
@@ -125,7 +130,7 @@ class Replicator:
             if inbetween(getShaRepr(key), pred.id, self.node.id):
                 new_removed_dict[key] = data.version
 
-        ok = node.set_partition(code_dict(new_dict), code_dict(new_version), code_dict(removed_dict))
+        ok = node.set_partition(code_dict(new_dict), code_dict(new_version), code_dict(new_removed_dict))
         if not ok:
             logging.error(f'Error replicating all data')
 
@@ -170,6 +175,7 @@ class Replicator:
 
     def resolve_data(self, dict: Dict[str, str], version: Dict[str, int], removed_dict: Dict[str, int]) -> str:
         logging.info('Resolving data versions')
+        print(dict)
 
         new_dict: Dict[str, Data] = {}
         res_dict_value: Dict[str, str] = {}
@@ -215,7 +221,7 @@ class Replicator:
 
             self.storage.set_all(new_dict)
 
-            return f'{code_dict(res_dict_value)},{code_dict(res_dict_version)},{code_dict(res_removed_dict)}'
+            return f'{code_dict(res_dict_value)}{SEPARATOR}{code_dict(res_dict_version)}{SEPARATOR}{code_dict(res_removed_dict)}'
 
     def new_predecessor_storage(self):
         with self.node.succ_lock:
@@ -269,3 +275,43 @@ class Replicator:
         with self.storage.storage_lock:
             self.storage.set_all(new_res_dict)
             self.storage.remove_all(res_removed_dict)
+
+    def fix_storage(self):
+        while True:
+            try:
+                logging.info('Fixing storage')
+
+                with self.storage.storage_lock:
+                    dict, _ = self.storage.get_all()
+                    logging.info(f'Data storage len: {len(dict)}')
+                    print(self.storage.storage)
+
+                with self.node.succ_lock:
+                    succ_len = len(self.node.successors)
+
+                with self.node.pred_lock:
+                    while len(self.node.predecessors) > succ_len:
+                        self.node.predecessors.remove_index(len(self.node.predecessors) - 1)
+                        if len(self.node.predecessors) == 0:
+                            self.node.predecessors.set_index(0, self.node.ref)
+                            break
+
+                with self.node.pred_lock:
+                    pred: ChordNodeReference = self.node.predecessors.get_index(len(self.node.predecessors) - 1)
+
+                if pred.id != self.node.id:
+                    pred_pred = pred.pred
+
+                    if pred_pred.id != self.node.id and pred_pred.id != pred.id:
+                        with self.timer.time_lock:
+                            time_c = self.timer.time_counter
+                        print(pred_pred.id)
+                        for key in dict.keys():
+                            if inbetween(getShaRepr(key), pred_pred.id, self.node.id):
+                                continue
+
+                            self.storage.remove(key, time_c)
+            except Exception as e:
+                logging.error(f'Error in storage fix: {e}')
+
+            time.sleep(60)
